@@ -24,54 +24,58 @@ VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return "_" + ''.join(random.choices(chars, k=10))
+    return "_" + ''.join(random.choices(chars, k=8))
+
+# Lista Kata Kunci & Properti Bawaan Roblox (TIDAK BOLEH DIACHAK)
+ROBLOX_KEYWORDS = {
+    # Lua Keywords
+    'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
+    'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
+    'true', 'until', 'while', 'self', 'ipairs', 'pairs', 'table', 'string', 
+    'math', 'print', 'warn', 'error', 'pcall', 'xpcall', 'select', 'type', 
+    'tostring', 'tonumber', 'setmetatable', 'getmetatable', 'utf8', 'coroutine',
+    # Roblox Services & Classes
+    'game', 'workspace', 'script', 'Instance', 'Vector3', 'CFrame', 'Color3', 
+    'UDim2', 'Enum', 'TweenInfo', 'Task', 'task', 'delay', 'wait', 'spawn',
+    # Common Roblox Methods & Properties
+    'GetService', 'WaitForChild', 'FindFirstChild', 'Connect', 'FireServer', 
+    'FireAllClients', 'FireClient', 'OnServerEvent', 'OnClientEvent', 
+    'Parent', 'Name', 'Value', 'Position', 'Size', 'Destroy', 'Clone'
+}
 
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Bersihkan komentar
+    # 1. Hapus komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Ekstrak string/teks agar masuk ke tabel enkripsi byte
+    # 2. Ekstrak string agar dienkripsi ke Array Byte (Termasuk teks Remote/Sound ID)
     strings_found = []
     def extract_strings(match):
         content = match.group(1) or match.group(2) or ""
         idx = len(strings_found)
         strings_found.append(content)
-        return f"__STR__[ {idx + 1} ]"
+        return f"__STR__[{idx + 1}]"
 
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
 
-    # 3. Ambil semua kata unik (variabel/nama fungsi) untuk di-mangling
-    # Mengecualikan keyword bawaan Lua/Luau agar script tidak syntax error
-    lua_keywords = {
-        'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 
-        'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 
-        'return', 'then', 'true', 'until', 'while', 'self', 'ipairs', 'pairs', 
-        'table', 'string', 'math', 'print', 'workspace', 'game', 'script', 'coroutine'
-    }
-    
+    # 3. Mengacak Variabel LOKAL saja
     tokens = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', code_with_lut))
     token_map = {}
     for t in tokens:
-        if t not in lua_keywords and not t.startswith('__'):
+        if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
             token_map[t] = generate_var()
 
-    # Ganti variabel di kode dengan nama acak
     def replace_tokens(match):
         word = match.group(0)
         return token_map.get(word, word)
 
     mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
 
-    # Kompres menjadi 1 baris
-    lines = [line.strip() for line in mangled_code.splitlines() if line.strip()]
-    compact_code = " ".join(lines)
-
-    # 4. Enkripsi String ke Byte Array
+    # 4. Buat String Table Enkripsi Byte
     encoded_strings = []
     for s in strings_found:
         bytes_list = [str(ord(c)) for c in s]
@@ -82,13 +86,13 @@ def obfuscate_roblox_script(lua_code):
 
     str_lut_data = "{" + ",".join(encoded_strings) + "}"
 
-    # 5. Variabel Engine Acak
+    # 5. Variable Engine
     v_raw = generate_var()
     v_out = generate_var()
     v_fn = generate_var()
     v_run = generate_var()
 
-    # 6. Susun Engine Utama
+    # 6. Susun Output
     engine = f"""
 local {v_raw} = {str_lut_data}
 local {v_out} = {{}}
@@ -106,12 +110,12 @@ setmetatable({v_out}, {{
 }})
 local __STR__ = {v_out}
 local {v_run} = function(...)
-    {compact_code}
+    {mangled_code}
 end
 return {v_run}(...)
 """
 
-    one_liner = " ".join([l.strip() for l in engine.splitlines() if l.strip()])
+    one_liner = " ".join([line.strip() for line in engine.splitlines() if line.strip()])
     return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
 HTML_TEMPLATE = """
