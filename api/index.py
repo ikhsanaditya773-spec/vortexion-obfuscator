@@ -15,7 +15,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX MUSIC TABLE SAFE) >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX MUSIC ENGINE SAFE) >>
 ]]--
 """
 
@@ -52,25 +52,25 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Bersihkan Komentar
+    # 1. Hapus Komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Amankan String Tanpa Merusak Tabel / Array ID
-    def str_to_byte_concat(match):
-        s = match.group(1) if match.group(1) is not None else match.group(2)
-        if not s:
-            return '""'
-        # Ubah string menjadi format string.char(...) yang 100% aman di Roblox
-        bytes_list = [str(ord(c)) for c in s]
-        return f"string.char({','.join(bytes_list)})"
+    # 2. Amankan String Literals agar tidak tersentuh penggantian variabel
+    strings_map = {}
+    
+    def protect_string(match):
+        s = match.group(0)
+        placeholder = f"__PROTECTED_STR_{len(strings_map)}__"
+        strings_map[placeholder] = s
+        return placeholder
 
-    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    code_safe_strings = re.sub(string_pattern, str_to_byte_concat, clean_code)
+    string_pattern = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\''
+    protected_code = re.sub(string_pattern, protect_string, clean_code)
 
     # 3. Mangle Variabel & Function Lokal
-    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
-    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
+    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', protected_code))
+    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', protected_code))
     
     targets_to_mangle = local_vars.union(func_vars)
     token_map = {}
@@ -83,9 +83,13 @@ def obfuscate_roblox_script(lua_code):
         word = match.group(0)
         return token_map.get(word, word)
 
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_safe_strings)
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, protected_code)
 
-    # 4. Bungkus ke Runtime Function
+    # 4. Kembalikan String Asli ke Posisinya (Tanpa Merusak Method Roblox)
+    for placeholder, original_str in strings_map.items():
+        mangled_code = mangled_code.replace(placeholder, original_str)
+
+    # 5. Bungkus ke Runtime Wrapper
     v_run = generate_var()
 
     engine = f"""
