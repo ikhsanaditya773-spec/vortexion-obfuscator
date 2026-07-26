@@ -1,9 +1,9 @@
 from flask import Flask, render_template_string, request
-import re
 import random
 
 app = Flask(__name__)
 
+# --- HEADER ASCII ART ---
 ASCII_ART_VORTEXION = r"""
 --[[
 VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
@@ -20,43 +20,30 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 """
 
 def generate_random_name():
-    hex_str = ''.join(random.choices("0123456789ABCDEF", k=4))
+    hex_str = ''.join(random.choices("0123456789ABCDEF", k=5))
     return f"_0x{hex_str}"
-
-def encode_string_to_char(match):
-    str_content = match.group(1) or match.group(2)
-    if str_content is None:
-        str_content = ""
-    # Menghindari crash jika ada karakter baris baru di dalam string
-    bytes_list = [str(ord(char)) for char in str_content]
-    if not bytes_list:
-        return '""'
-    return f"string.char({', '.join(bytes_list)})"
 
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Obfuskasi String
-    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    obfuscated_code = re.sub(string_pattern, encode_string_to_char, lua_code)
-
-    # 2. Obfuskasi Variabel Local Sederhana
-    var_pattern = r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)'
-    variables = set(re.findall(var_pattern, lua_code))
+    # 1. Enkripsi seluruh kode sumber menjadi array bytecode/ASCII tersembunyi
+    encoded_bytes = [str(ord(char)) for char in lua_code]
+    byte_string = ",".join(encoded_bytes)
     
-    var_map = {}
-    blacklist = ['self', 'script', 'game', 'workspace', 'plugin', 'shared', '_G']
-    for var in variables:
-        if var not in blacklist:
-            var_map[var] = generate_random_name()
+    # 2. Buat nama variabel acak untuk VM Loader
+    v_data = generate_random_name()
+    v_func = generate_random_name()
+    v_load = generate_random_name()
+    
+    # 3. Susun Loader Satu Baris (One-Liner Execution)
+    # Memakai loadstring() / load() bawaan Lua/Roblox Executor
+    one_liner = f"local {v_data}={{ {byte_string} }};local {v_func}=\"\";for _,v in ipairs({v_data}) do {v_func}={v_func}..string.char(v) end;local {v_load}=assert(loadstring or load)({v_func});return {v_load}()"
 
-    for old_var, new_var in var_map.items():
-        obfuscated_code = re.sub(r'\b' + old_var + r'\b', new_var, obfuscated_code)
+    # Hasil: Header ASCII + 1 Baris Kode Teracak
+    return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
-    # Kembalikan kode langsung dengan Header (tanpa wrapper function yang merusak 'return' / syntax)
-    return f"{ASCII_ART_VORTEXION}\n{obfuscated_code}"
-
+# --- TAMPILAN WEB ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id">
@@ -71,7 +58,7 @@ HTML_TEMPLATE = """
         .editor-container { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
         .box { flex: 1; min-width: 300px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 8px; color: #8b949e; }
-        textarea { width: 100%; height: 350px; background-color: #161b22; color: #7ee787; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-sizing: border-box; resize: vertical; }
+        textarea { width: 100%; height: 350px; background-color: #161b22; color: #7ee787; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-sizing: border-box; resize: vertical; white-space: pre-wrap; word-wrap: break-word; }
         button { margin-top: 15px; padding: 12px; background-color: #238636; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; width: 100%; }
         button:hover { background-color: #2ea043; }
     </style>
