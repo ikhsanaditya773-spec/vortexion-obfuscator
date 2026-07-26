@@ -27,20 +27,18 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Enkripsi seluruh kode sumber menjadi array bytecode/ASCII tersembunyi
-    encoded_bytes = [str(ord(char)) for char in lua_code]
-    byte_string = ",".join(encoded_bytes)
+    # 1. Mengubah teks ke daftar Unicode Codepoints (Aman untuk Emoji & Karakter Khusus)
+    codepoints = [str(ord(char)) for char in lua_code]
+    byte_string = ",".join(codepoints)
     
-    # 2. Buat nama variabel acak untuk VM Loader
+    # 2. Nama variabel acak untuk Loader
     v_data = generate_random_name()
     v_func = generate_random_name()
     v_load = generate_random_name()
     
-    # 3. Susun Loader Satu Baris (One-Liner Execution)
-    # Memakai loadstring() / load() bawaan Lua/Roblox Executor
-    one_liner = f"local {v_data}={{ {byte_string} }};local {v_func}=\"\";for _,v in ipairs({v_data}) do {v_func}={v_func}..string.char(v) end;local {v_load}=assert(loadstring or load)({v_func});return {v_load}()"
+    # 3. Loader Luau yang menggunakan utf8.char & loadstring
+    one_liner = f"local {v_data}={{ {byte_string} }};local {v_func}=\"\";for _,v in ipairs({v_data}) do {v_func}={v_func}..utf8.char(v) end;local {v_load}=assert(loadstring or load)({v_func});return {v_load}()"
 
-    # Hasil: Header ASCII + 1 Baris Kode Teracak
     return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
 # --- TAMPILAN WEB ---
