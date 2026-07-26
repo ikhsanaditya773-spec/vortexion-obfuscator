@@ -4,7 +4,6 @@ import random
 
 app = Flask(__name__)
 
-# --- HEADER ASCII ART ---
 ASCII_ART_VORTEXION = r"""
 --[[
 VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
@@ -35,11 +34,11 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # Obfuskasi String
+    # 1. Obfuskasi String
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     obfuscated_code = re.sub(string_pattern, encode_string_to_char, lua_code)
 
-    # Obfuskasi Variabel
+    # 2. Obfuskasi Variabel Local Sederhana
     var_pattern = r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)'
     variables = set(re.findall(var_pattern, lua_code))
     
@@ -52,10 +51,9 @@ def obfuscate_roblox_script(lua_code):
     for old_var, new_var in var_map.items():
         obfuscated_code = re.sub(r'\b' + old_var + r'\b', new_var, obfuscated_code)
 
-    wrapper_name = generate_random_name()
-    return f"{ASCII_ART_VORTEXION}\nlocal {wrapper_name} = function()\n{obfuscated_code}\nend\n{wrapper_name}()"
+    # Kembalikan kode langsung dengan Header (tanpa wrapper function yang merusak 'return' / syntax)
+    return f"{ASCII_ART_VORTEXION}\n{obfuscated_code}"
 
-# --- TAMPILAN WEB (HTML + CSS) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id">
@@ -105,5 +103,4 @@ def index():
         output_code = obfuscate_roblox_script(input_code)
     return render_template_string(HTML_TEMPLATE, input_code=input_code, output_code=output_code)
 
-# Diperlukan untuk Vercel Serverless
 app = app
