@@ -5,8 +5,7 @@ import re
 app = Flask(__name__)
 
 # Header ASCII Art khas VORTEXION
-ASCII_ART_VORTEXION = r"""
---[[
+ASCII_ART_VORTEXION = r"""--[[
 VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
  VVV          VVV OOOOOOOOOOO RRRRRRRRRRRTTTTTTTTTTTEEEEEEEEEE  XXXXX    XXXXX  I OOOOOOOOOOO NNNN   NNNN
   VVV        VVV OOOOO   OOOOO RRR     RRR   TTTT   EEE           XXXXX  XXXXX   I OOOOO   OOOOONNNNN  NNNN
@@ -16,83 +15,55 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << VORTEXION NATIVE OBFUSCATOR (NO LOADSTRING REQUIRED) >>
-]]--
-"""
+      << VORTEXION NATIVE OBFUSCATOR (ONE-LINER NO LOADSTRING) >>
+]]--"""
 
-# Daftar Key VIP yang Valid
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_var():
-    """Membuat nama variabel acak super rumit"""
     chars = "lI1O0_v"
     return "_" + ''.join(random.choices(chars, k=14))
 
 def encrypt_string_to_xor(text, key):
-    """Mengubah string biasa menjadi Byte Array yang di-XOR"""
     bytes_list = [str(ord(c) ^ key) for c in text]
     return "{" + ",".join(bytes_list) + "}"
 
-def obfuscate_native_dewa(lua_code):
-    """
-    ENGINE OBFUSCATOR NATIVE (Tingkat Tinggi Tanpa Loadstring)
-    Aman untuk semua game Roblox tanpa perlu centang AllowLoadstring!
-    """
+def obfuscate_native_one_liner(lua_code):
     if not lua_code.strip():
         return ""
 
     xor_key = random.randint(11, 230)
     
-    # Variabel acak pendukung
     v_decrypt = generate_var()
     v_bytes = generate_var()
-    v_str = generate_var()
     v_key = generate_var()
     v_i = generate_var()
     v_res = generate_var()
     
-    # 1. Cari semua String ("...", '...') di dalam kode dan ubah jadi panggilan fungsi Decrypt
-    # Ini membuat ID Lagu & RemoteEvent terenkripsi total!
     def string_replacer(match):
-        raw_str = match.group(0)[1:-1] # Hapus tanda petik
+        raw_str = match.group(0)[1:-1]
         if not raw_str:
             return '""'
         encrypted_array = encrypt_string_to_xor(raw_str, xor_key)
         return f'{v_decrypt}({encrypted_array})'
 
-    # Regex untuk mendeteksi string dalam kuotasi ganda atau tunggal
     obfuscated_code = re.sub(r'"([^"\\]*(\\.[^"\\]*)*)"|\'([^\'\\]*(\\.[^\'\\]*)*)\'', string_replacer, lua_code)
 
-    # 2. Bungkus dengan Native XOR Decryption Function Engine
-    native_wrapper = f"""
-local {v_key} = {xor_key}
-local function {v_decrypt}({v_bytes})
-    local {v_res} = {{}}
-    for {v_i} = 1, #{v_bytes} do
-        {v_res}[{v_i}] = string.char(bit32.bxor({v_bytes}[{v_i}], {v_key}))
-    end
-    return table.concat({v_res})
-end
+    # Menghapus newlines dari script input agar bisa digabung
+    clean_user_code = " ".join([line.strip() for line in obfuscated_code.splitlines() if line.strip()])
 
--- EXECUTING PROTECTED SOURCE --
-(function()
-{obfuscated_code}
-end)()
-"""
-    
-    # Minify / Format ulang agar rapi & padat
-    lines = [line.strip() for line in native_wrapper.splitlines() if line.strip()]
-    return f"{ASCII_ART_VORTEXION}\n" + "\n".join(lines)
+    # Dibuat rapat jadi 1 baris utuh!
+    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do {v_res}[{v_i}]=string.char(bit32.bxor({v_bytes}[{v_i}],{v_key})) end return table.concat({v_res}) end (function() {clean_user_code} end)()"
 
+    return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
 
-# Template Tampilan UI Web (HTML + CSS)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VORTEXION - Native Luau Obfuscator</title>
+    <title>VORTEXION - Native One-Liner Obfuscator</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 1050px; margin: 0 auto; }
@@ -102,7 +73,7 @@ HTML_TEMPLATE = """
         .editor-container { display: flex; gap: 20px; margin-top: 10px; flex-wrap: wrap; }
         .box { flex: 1; min-width: 320px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 8px; color: #58a6ff; }
-        textarea { width: 100%; height: 360px; background-color: #161b22; color: #7ee787; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-sizing: border-box; resize: vertical; }
+        textarea { width: 100%; height: 360px; background-color: #161b22; color: #7ee787; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-sizing: border-box; resize: vertical; white-space: pre-wrap; word-break: break-all; }
         textarea:focus { outline: 1px solid #58a6ff; }
         
         .action-btns { display: flex; gap: 10px; margin-top: 10px; }
@@ -122,18 +93,18 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h1>⚡ VORTEXION LUAU NATIVE OBFUSCATOR ⚡</h1>
-        <div class="subtitle">🔒 No Loadstring Required - 100% Roblox Native Safe</div>
+        <h1>⚡ VORTEXION ONE-LINER OBFUSCATOR ⚡</h1>
+        <div class="subtitle">🔒 Native Roblox (No Loadstring) - 1 Baris Rapat</div>
 
         <form method="POST">
             <div class="editor-container">
                 <div class="box">
                     <label>📝 Script Roblox Asli (Input):</label>
-                    <textarea name="input_code" placeholder="Paste script Music Server / UI kamu di sini...">{{ input_code }}</textarea>
+                    <textarea name="input_code" placeholder="Paste script di sini...">{{ input_code }}</textarea>
                 </div>
                 <div class="box">
-                    <label>🛡️ Hasil Protection Native (Output):</label>
-                    <textarea id="outputCode" readonly placeholder="Hasil Obfuscation akan muncul di sini...">{{ output_code }}</textarea>
+                    <label>🛡️ Hasil Obfuscation (Output 1 Baris):</label>
+                    <textarea id="outputCode" readonly placeholder="Hasil 1 baris akan muncul di sini...">{{ output_code }}</textarea>
                     <div class="action-btns">
                         <button type="button" class="btn-secondary" onclick="copyOutput()">📋 Salin Script (Copy Output)</button>
                     </div>
@@ -145,7 +116,7 @@ HTML_TEMPLATE = """
                 <input type="text" name="access_key" placeholder="Masukkan Kode Key Premium..." value="{{ access_key }}">
             </div>
 
-            <button type="submit" class="btn-main">🛡️ Obfuscate Native (Anti-Crack)</button>
+            <button type="submit" class="btn-main">🚀 Obfuscate 1 Baris</button>
         </form>
 
         {% if error %}
@@ -158,7 +129,7 @@ HTML_TEMPLATE = """
             const outputText = document.getElementById("outputCode");
             if (!outputText.value.trim()) return alert("Belum ada kode untuk disalin!");
             navigator.clipboard.writeText(outputText.value);
-            alert("✅ Hasil Obfuscation berhasil disalin!");
+            alert("✅ Hasil 1 Baris berhasil disalin!");
         }
     </script>
 </body>
@@ -176,11 +147,10 @@ def index():
         input_code = request.form.get("input_code", "")
         access_key = request.form.get("access_key", "").strip()
 
-        # Validasi Key
         if access_key and access_key not in VALID_KEYS:
             error = "❌ Kode Key Premium tidak valid!"
         else:
-            output_code = obfuscate_native_dewa(input_code)
+            output_code = obfuscate_native_one_liner(input_code)
 
     return render_template_string(
         HTML_TEMPLATE, 
@@ -190,5 +160,4 @@ def index():
         error=error
     )
 
-# Vercel Deployment Entrypoint
 app = app
