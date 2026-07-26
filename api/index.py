@@ -1,7 +1,6 @@
 from flask import Flask, render_template_string, request
 import re
 import random
-import base64
 
 app = Flask(__name__)
 
@@ -38,19 +37,20 @@ def obfuscate_roblox_script(lua_code):
     lines = [line.strip() for line in clean_code.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 2. Convert seluruh kode ke Array UTF-8 Codepoints (Mengacak SEMUA huruf/kata/simbol)
+    # 2. Mengubah seluruh karakter ke Array UTF-8 Byte
     codepoints = [str(ord(c)) for c in compact_code]
     encoded_data = ",".join(codepoints)
 
-    # 3. Randomize Nama Variabel Loader
+    # 3. Randomize Nama Variabel Engine
     v_arr = generate_random_name()
     v_str = generate_random_name()
-    v_func = generate_random_name()
+    v_fn = generate_random_name()
+    v_exec = generate_random_name()
 
-    # 4. Loader Ringkas Bebas Loadstring & Teracak Total
-    lua_engine = f"local {v_arr}={{ {encoded_data} }}; local {v_str}=\"\"; for _,v in ipairs({v_arr}) do {v_str}={v_str}..utf8.char(v) end; local {v_func}=function(...) local _s=setfenv or function(f,e) return f end; return _s(loadstring or load, getfenv())({v_str})(...) end; return {v_func}(...)"
+    # 4. Luau Execution Engine Aman (Tanpa setfenv yang memicu error)
+    lua_engine = f"local {v_arr}={{ {encoded_data} }}; local {v_str}=\"\"; for _,v in ipairs({v_arr}) do {v_str}={v_str}..utf8.char(v) end; local {v_fn}=assert(loadstring or load)({v_str}); local {v_exec}=function(...) return {v_fn}(...) end; return {v_exec}(...)"
 
-    # Buat 1 baris utuh
+    # Menjadikan output tepat 1 baris
     one_liner = " ".join([l.strip() for l in lua_engine.splitlines()])
 
     return f"{ASCII_ART_VORTEXION}\n{one_liner}"
