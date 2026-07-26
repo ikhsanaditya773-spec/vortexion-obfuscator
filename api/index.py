@@ -25,33 +25,27 @@ def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "_" + ''.join(random.choices(chars, k=8))
 
-# Whitelist Kata Kunci Lua & Methods/Events Roblox agar tidak bernilai nil
+# Whitelist Luau & Roblox API lengkap
 ROBLOX_KEYWORDS = {
-    # Lua Keywords & Global Functions
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
     'true', 'until', 'while', 'self', 'ipairs', 'pairs', 'table', 'string', 
     'math', 'print', 'warn', 'error', 'pcall', 'xpcall', 'select', 'type', 
     'tostring', 'tonumber', 'setmetatable', 'getmetatable', 'utf8', 'coroutine',
     'unpack', 'next', 'assert', 'rawget', 'rawset', 'rawequal', 'typeof',
-    
-    # Roblox Globals & Datatypes
     'game', 'workspace', 'script', 'Instance', 'Vector3', 'Vector2', 'CFrame', 
     'Color3', 'UDim2', 'UDim', 'Enum', 'TweenInfo', 'Task', 'task', 'delay', 
     'wait', 'spawn', 'tick', 'time', 'os', 'shared', '_G', 'Ray', 'RaycastParams',
-    
-    # Common Roblox Services
     'Players', 'ReplicatedStorage', 'ServerScriptService', 'ServerStorage', 
     'TweenService', 'UserInputService', 'RunService', 'HttpService', 
     'SoundService', 'Lighting', 'StarterGui', 'StarterPack', 'Debris',
-    
-    # Common Methods, Events & Properties
     'GetService', 'WaitForChild', 'FindFirstChild', 'FindFirstChildOfClass',
     'Connect', 'Once', 'Wait', 'FireServer', 'FireAllClients', 'FireClient', 
     'OnServerEvent', 'OnClientEvent', 'InvokeServer', 'InvokeClient', 
     'OnServerInvoke', 'OnClientInvoke', 'Parent', 'Name', 'Value', 'Position', 
     'Size', 'Destroy', 'Clone', 'ClearAllChildren', 'GetChildren', 'GetDescendants',
-    'IsA', 'Play', 'Stop', 'Pause', 'Resume', 'AddItem'
+    'IsA', 'Play', 'Stop', 'Pause', 'Resume', 'AddItem', 'SoundId', 'Loaded', 
+    'TimeLength', 'IsLoaded', 'Playing', 'Volume', 'Pitch', 'PlaybackSpeed'
 }
 
 def obfuscate_roblox_script(lua_code):
@@ -62,10 +56,12 @@ def obfuscate_roblox_script(lua_code):
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Ekstrak String ke Enkripsi Array Byte
+    # 2. Extract String aman
     strings_found = []
     def extract_strings(match):
-        content = match.group(1) or match.group(2) or ""
+        content = match.group(1) if match.group(1) is not None else match.group(2)
+        if content is None:
+            content = ""
         idx = len(strings_found)
         strings_found.append(content)
         return f"__STR__[{idx + 1}]"
@@ -73,8 +69,7 @@ def obfuscate_roblox_script(lua_code):
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
 
-    # 3. Kumpulkan variabel lokal untuk di-mangling
-    # Hanya acak identifier yang diawali keyword 'local' atau 'function'
+    # 3. Mangle Variabel Lokal & Fungsi saja
     local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
     func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
     
@@ -85,14 +80,13 @@ def obfuscate_roblox_script(lua_code):
         if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
             token_map[t] = generate_var()
 
-    # Hanya ganti variabel lokal yang cocok agar method/event Roblox tidak tersenggol
     def replace_tokens(match):
         word = match.group(0)
         return token_map.get(word, word)
 
     mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
 
-    # 4. Buat Tabel Look-Up String
+    # 4. Enkripsi Byte Array String
     encoded_strings = []
     for s in strings_found:
         bytes_list = [str(ord(c)) for c in s]
@@ -108,16 +102,18 @@ def obfuscate_roblox_script(lua_code):
     v_fn = generate_var()
     v_run = generate_var()
 
-    # 5. Rakit Engine Luau
+    # 5. Runtime Engine Luau dengan Penanganan Karakter UTF-8 Presisi
     engine = f"""
 local {v_raw} = {str_lut_data}
 local {v_out} = {{}}
 local function {v_fn}(idx)
-    local t = {{}}
-    for _, b in ipairs({v_raw}[idx]) do
-        table.insert(t, utf8.char(b))
+    local bytes = {v_raw}[idx]
+    if not bytes or #bytes == 0 then return "" end
+    local chars = {{}}
+    for i = 1, #bytes do
+        chars[i] = string.char(bytes[i])
     end
-    return table.concat(t)
+    return table.concat(chars)
 end
 setmetatable({v_out}, {{
     __index = function(_, k)
