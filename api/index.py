@@ -16,7 +16,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR (SAFE BASE64 DECODER) >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX SERVICE SAFE) >>
 ]]--
 """
 
@@ -26,7 +26,7 @@ def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "_" + ''.join(random.choices(chars, k=8))
 
-# Whitelist Luau & Roblox API lengkap
+# Whitelist Luau & Roblox API Lengkap
 ROBLOX_KEYWORDS = {
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
@@ -53,29 +53,28 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Bersihkan Komentar
+    # 1. Hapus Komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Ekstrak String & Ubah ke Base64 (Aman dari escape sequence error)
+    # 2. Amankan String Literals DULU (agar isi string tidak ikut ter-replace mangling)
     strings_found = []
     def extract_strings(match):
         content = match.group(1) if match.group(1) is not None else match.group(2)
         if content is None:
             content = ""
-        
-        # Enkripsi ke Base64
         b64_str = base64.b64encode(content.encode('utf-8')).decode('utf-8')
         idx = len(strings_found)
         strings_found.append(b64_str)
         return f"__STR__[{idx + 1}]"
 
+    # Regex String
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
+    code_protected_strings = re.sub(string_pattern, extract_strings, clean_code)
 
-    # 3. Mangle Variabel Lokal & Fungsi Saja
-    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
-    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
+    # 3. Cari Variabel Lokal & Fungsi Lokal untuk di-mangle
+    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_protected_strings))
+    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_protected_strings))
     
     targets_to_mangle = local_vars.union(func_vars)
     token_map = {}
@@ -84,13 +83,14 @@ def obfuscate_roblox_script(lua_code):
         if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
             token_map[t] = generate_var()
 
+    # Hanya replace kata yang merupakan variabel lokal murni
     def replace_tokens(match):
         word = match.group(0)
         return token_map.get(word, word)
 
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_protected_strings)
 
-    # 4. Buat Tabel Data Base64
+    # 4. Buat Tabel String Lookup
     str_lut_data = "{" + ",".join([f'"{s}"' for s in strings_found]) + "}"
 
     v_raw = generate_var()
@@ -99,7 +99,7 @@ def obfuscate_roblox_script(lua_code):
     v_b64 = generate_var()
     v_run = generate_var()
 
-    # 5. Runtime Engine Luau dengan Base64 Decoder Murni
+    # 5. Runtime Engine Luau
     engine = f"""
 local {v_raw} = {str_lut_data}
 local {v_b64} = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
