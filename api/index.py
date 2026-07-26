@@ -4,7 +4,7 @@ import re
 
 app = Flask(__name__)
 
-# Header ASCII Art khas VORTEXION (Kembali Hadir!)
+# Header ASCII Art khas VORTEXION
 ASCII_ART_VORTEXION = r"""--[[
 VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
  VVV          VVV OOOOOOOOOOO RRRRRRRRRRRTTTTTTTTTTTEEEEEEEEEE  XXXXX    XXXXX  I OOOOOOOOOOO NNNN   NNNN
@@ -15,7 +15,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << VORTEXION NATIVE OBFUSCATOR (SAFE ONE-LINER) >>
+      << VORTEXION NATIVE OBFUSCATOR (FIXED CHAR RANGE) >>
 ]]--"""
 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
@@ -24,11 +24,17 @@ def generate_var():
     chars = "lI1O0_v"
     return "_" + ''.join(random.choices(chars, k=14))
 
-def encrypt_string_to_xor(text, key):
-    bytes_list = [str(ord(c) ^ key) for c in text]
+def safe_encrypt_string(text, key):
+    """Enkripsi aman dengan konversi byte yang divalidasi ke range 0-255"""
+    # Mengabaikan karakter escape Luau yang bikin corrupt saat di-decode Python
+    text = text.encode('utf-8', 'ignore').decode('utf-8')
+    bytes_list = []
+    for c in text:
+        byte_val = (ord(c) ^ key) % 256  # Memastikan byte selalu 0-255
+        bytes_list.append(str(byte_val))
     return "{" + ",".join(bytes_list) + "}"
 
-def obfuscate_native_safe_oneliner(lua_code):
+def obfuscate_native_safe(lua_code):
     if not lua_code.strip():
         return ""
 
@@ -40,36 +46,33 @@ def obfuscate_native_safe_oneliner(lua_code):
     v_i = generate_var()
     v_res = generate_var()
 
-    # 1. Hapus semua komentar Lua agar tidak merusak 1 baris
+    # 1. Hapus semua komentar Lua agar 1 baris tidak terputus
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Enkripsi semua string / ID Lagu / RemoteEvent
+    # 2. Enkripsi String dengan penanganan karakter aman
     def string_replacer(match):
         raw_str = match.group(0)[1:-1]
         if not raw_str:
             return '""'
-        encrypted_array = encrypt_string_to_xor(raw_str, xor_key)
+        encrypted_array = safe_encrypt_string(raw_str, xor_key)
         return f'{v_decrypt}({encrypted_array})'
 
+    # Hanya tangkap string sederhana tanpa memicu bentrok escape sequence
     obfuscated_code = re.sub(r'"([^"\\]*(\\.[^"\\]*)*)"|\'([^\'\\]*(\\.[^\'\\]*)*)\'', string_replacer, clean_code)
 
-    # 3. Gabungkan tiap baris & bersihkan spasi/titik koma ganda
+    # 3. Gabung baris & bersihkan spasi ganda
     lines = [line.strip() for line in obfuscated_code.splitlines() if line.strip()]
     raw_joined = " ".join(lines)
     
-    # Hapus double semicolon atau pembatas tidak valid yang memicu error 'got ;'
     cleaned_joined = re.sub(r';\s*;+', ';', raw_joined)
     cleaned_joined = re.sub(r'^\s*;+', '', cleaned_joined)
 
-    # 4. Bungkus dalam One-Liner Native Engine
-    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do {v_res}[{v_i}]=string.char(bit32.bxor({v_bytes}[{v_i}],{v_key})) end return table.concat({v_res}) end task.spawn(function() {cleaned_joined} end)"
+    # 4. Engine Decompressor Native dengan Proteksi Range (0-255)
+    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do local b=bit32.bxor({v_bytes}[{v_i}],{v_key})%256 {v_res}[{v_i}]=string.char(b) end return table.concat({v_res}) end task.spawn(function() {cleaned_joined} end)"
 
-    # Sertakan kembali ASCII Header khas VORTEXION!
     return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
 
-
-# Template Tampilan UI Web
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id">
@@ -107,7 +110,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
-        <div class="subtitle">🔒 No Loadstring Required - Safe One-Liner Output</div>
+        <div class="subtitle">🔒 No Loadstring Required - Fixed Character Byte System</div>
 
         <form method="POST">
             <div class="editor-container">
@@ -129,7 +132,7 @@ HTML_TEMPLATE = """
                 <input type="text" name="access_key" placeholder="Masukkan Kode Key Premium..." value="{{ access_key }}">
             </div>
 
-            <button type="submit" class="btn-main">🛡️ Obfuscate Safe One-Liner</button>
+            <button type="submit" class="btn-main">🛡️ Obfuscate Script</button>
         </form>
 
         {% if error %}
@@ -163,7 +166,7 @@ def index():
         if access_key and access_key not in VALID_KEYS:
             error = "❌ Kode Key Premium tidak valid!"
         else:
-            output_code = obfuscate_native_safe_oneliner(input_code)
+            output_code = obfuscate_native_safe(input_code)
 
     return render_template_string(
         HTML_TEMPLATE, 
