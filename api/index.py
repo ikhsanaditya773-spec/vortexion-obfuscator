@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, request
 import re
 import random
+import base64
 
 app = Flask(__name__)
 
@@ -15,7 +16,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX AUDIO COMPATIBLE) >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (SAFE BASE64 DECODER) >>
 ]]--
 """
 
@@ -25,7 +26,7 @@ def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "_" + ''.join(random.choices(chars, k=8))
 
-# Whitelist Luau & Roblox API
+# Whitelist Luau & Roblox API lengkap
 ROBLOX_KEYWORDS = {
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
@@ -56,20 +57,25 @@ def obfuscate_roblox_script(lua_code):
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Amankan string dengan format Escape Character Luau bawaan (\xxx)
-    def string_to_luau_escape(match):
-        s = match.group(1) if match.group(1) is not None else match.group(2)
-        if not s:
-            return '""'
-        escaped = "".join([f"\\{ord(c):03d}" for c in s])
-        return f'"{escaped}"'
+    # 2. Ekstrak String & Ubah ke Base64 (Aman dari escape sequence error)
+    strings_found = []
+    def extract_strings(match):
+        content = match.group(1) if match.group(1) is not None else match.group(2)
+        if content is None:
+            content = ""
+        
+        # Enkripsi ke Base64
+        b64_str = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+        idx = len(strings_found)
+        strings_found.append(b64_str)
+        return f"__STR__[{idx + 1}]"
 
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    code_safe_strings = re.sub(string_pattern, string_to_luau_escape, clean_code)
+    code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
 
     # 3. Mangle Variabel Lokal & Fungsi Saja
-    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
-    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
+    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
+    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
     
     targets_to_mangle = local_vars.union(func_vars)
     token_map = {}
@@ -82,12 +88,43 @@ def obfuscate_roblox_script(lua_code):
         word = match.group(0)
         return token_map.get(word, word)
 
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_safe_strings)
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
 
-    # 4. Bungkus dalam Anonymous Function
+    # 4. Buat Tabel Data Base64
+    str_lut_data = "{" + ",".join([f'"{s}"' for s in strings_found]) + "}"
+
+    v_raw = generate_var()
+    v_out = generate_var()
+    v_fn = generate_var()
+    v_b64 = generate_var()
     v_run = generate_var()
 
+    # 5. Runtime Engine Luau dengan Base64 Decoder Murni
     engine = f"""
+local {v_raw} = {str_lut_data}
+local {v_b64} = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+local function {v_fn}(data)
+    if not data or #data == 0 then return "" end
+    data = string.gsub(data, '[^'..{v_b64}..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r,f='',( {v_b64}:find(x)-1 )
+        for i=6,1,-1 do r=r..(f%2^i - f%2^(i-1) > 0 and '1' or '0') end
+        return r
+    end):gsub('%d%d%d%d%d%d%d%d', function(x)
+        local c=0
+        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+
+local {v_out} = {{}}
+setmetatable({v_out}, {{
+    __index = function(_, k)
+        return {v_fn}({v_raw}[k])
+    end
+}})
+local __STR__ = {v_out}
 local {v_run} = function(...)
     {mangled_code}
 end
