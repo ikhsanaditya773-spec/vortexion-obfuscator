@@ -19,10 +19,12 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       << VORTEXION NATIVE OBFUSCATOR (UNIVERSAL & DAILY LIMIT) >>
 ]]--"""
 
+# MASUKKAN LINK DISCORD KELOMPOK / COMMUNITY KAMU DI SINI
+DISCORD_INVITE_URL = "https://discord.gg/vortexior"  # Ganti dengan link Discord kamu!
+
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
-# System Tracking Daily Limit (Menyimpan IP & Tanggal Pemakaian)
-# Format: { "IP_ADDRESS": date_object }
+# System Tracking Daily Limit
 user_usage_tracker = {}
 
 def generate_var():
@@ -49,11 +51,9 @@ def obfuscate_native_safe(lua_code):
     v_i = generate_var()
     v_res = generate_var()
 
-    # 1. Hapus semua komentar Lua
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Enkripsi String
     def string_replacer(match):
         raw_str = match.group(0)[1:-1]
         if not raw_str:
@@ -63,14 +63,12 @@ def obfuscate_native_safe(lua_code):
 
     obfuscated_code = re.sub(r'"([^"\\]*(\\.[^"\\]*)*)"|\'([^\'\\]*(\\.[^\'\\]*)*)\'', string_replacer, clean_code)
 
-    # 3. Gabung baris & bersihkan semicolon berlebih
     lines = [line.strip() for line in obfuscated_code.splitlines() if line.strip()]
     raw_joined = " ".join(lines)
     
     cleaned_joined = re.sub(r';\s*;+', ';', raw_joined)
     cleaned_joined = re.sub(r'^\s*;+', '', cleaned_joined)
 
-    # 4. Engine Universal (Support ServerScript, LocalScript & ModuleScript)
     one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do local b=bit32.bxor({v_bytes}[{v_i}],{v_key})%256 {v_res}[{v_i}]=string.char(b) end return table.concat({v_res}) end return (function() {cleaned_joined} end)()"
 
     return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
@@ -85,9 +83,15 @@ HTML_TEMPLATE = """
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 1050px; margin: 0 auto; }
-        h1 { text-align: center; color: #58a6ff; font-size: 30px; margin-bottom: 5px; text-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
-        .subtitle { text-align: center; color: #8b949e; margin-bottom: 25px; font-size: 14px; }
         
+        .header-box { text-align: center; margin-bottom: 25px; }
+        h1 { color: #58a6ff; font-size: 30px; margin-bottom: 5px; text-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
+        .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 15px; }
+        
+        /* Tombol Discord */
+        .discord-btn { display: inline-flex; align-items: center; gap: 8px; background-color: #5865F2; color: white; padding: 8px 18px; border-radius: 20px; text-decoration: none; font-weight: bold; font-size: 13px; transition: 0.2s; box-shadow: 0 4px 10px rgba(88, 101, 242, 0.3); }
+        .discord-btn:hover { background-color: #4752C4; transform: translateY(-2px); }
+
         .editor-container { display: flex; gap: 20px; margin-top: 10px; flex-wrap: wrap; }
         .box { flex: 1; min-width: 320px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 8px; color: #58a6ff; }
@@ -106,14 +110,22 @@ HTML_TEMPLATE = """
         button.btn-main { margin-top: 15px; padding: 15px; background-color: #238636; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; width: 100%; transition: 0.2s; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); }
         button.btn-main:hover { background-color: #2ea043; }
         
-        .status-msg { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(248, 81, 73, 0.3); }
-        .info-msg { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; color: #7ee787; background: rgba(46, 160, 67, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(46, 160, 67, 0.3); }
+        .status-msg { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(248, 81, 73, 0.3); }
+        .info-msg { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; color: #7ee787; background: rgba(46, 160, 67, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(46, 160, 67, 0.3); }
+        
+        .discord-link-inline { color: #5865F2; text-decoration: underline; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
-        <div class="subtitle">🔒 Universal Roblox Support (Limit: Free 1x/Hari | VIP Unlimited)</div>
+        <div class="header-box">
+            <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
+            <div class="subtitle">🔒 Universal Roblox Support (Limit: Free 1x/Hari | VIP Unlimited)</div>
+            <a href="{{ discord_url }}" target="_blank" class="discord-btn">
+                <svg width="18" height="18" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a73.51,73.51,0,0,0,64.32,0c.87.69,1.76,1.37,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.51-51.11-18.91-72.12ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74C48.86,40.21,54,45.92,53.86,53,53.86,60,48.78,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.08-12.74,11.44-12.74C91.13,40.21,96.2,45.92,96.07,53,96.07,60,91,65.69,84.69,65.69Z"/></svg>
+                Join Discord VORTEXION
+            </a>
+        </div>
 
         <form method="POST">
             <div class="editor-container">
@@ -139,7 +151,9 @@ HTML_TEMPLATE = """
         </form>
 
         {% if error %}
-            <div class="status-msg">{{ error }}</div>
+            <div class="status-msg">
+                {{ error|safe }}
+            </div>
         {% elif info %}
             <div class="info-msg">{{ info }}</div>
         {% endif %}
@@ -165,7 +179,6 @@ def index():
     error = None
     info = None
 
-    # Mengambil IP Asli User
     user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     if user_ip and ',' in user_ip:
         user_ip = user_ip.split(',')[0].strip()
@@ -176,24 +189,20 @@ def index():
         input_code = request.form.get("input_code", "")
         access_key = request.form.get("access_key", "").strip()
 
-        # Cek apakah user menggunakan VIP Key
         is_vip = access_key in VALID_KEYS
 
         if access_key and not is_vip:
-            error = "❌ Kode Key Premium tidak valid!"
+            error = f"❌ Kode Key Premium tidak valid! Minta Key VIP gratis di <a href='{DISCORD_INVITE_URL}' target='_blank' class='discord-link-inline'>Discord VORTEXION</a>."
         else:
-            # Jika BUKAN VIP, cek limit harian berdasarkan IP
             if not is_vip:
                 last_used_date = user_usage_tracker.get(user_ip)
                 if last_used_date == today:
-                    error = "⚠️ Jatah gratis harian kamu sudah habis (1x/hari)! Masukkan Key VIP untuk penggunaan tanpa batas."
+                    error = f"⚠️ Jatah gratis harian kamu sudah habis (1x/hari)! Dapatkan Key VIP di <a href='{DISCORD_INVITE_URL}' target='_blank' class='discord-link-inline'>Discord VORTEXION</a> untuk penggunaan tanpa batas."
                 else:
-                    # Izinkan dan catat tanggal hari ini
                     output_code = obfuscate_native_safe(input_code)
                     user_usage_tracker[user_ip] = today
                     info = "✅ Berhasil obfuscate! (Jatah gratis hari ini digunakan)"
             else:
-                # VIP User: Langsung proses tanpa batas
                 output_code = obfuscate_native_safe(input_code)
                 info = "⚡ Berhasil obfuscate dengan VIP Access (Unlimited)!"
 
@@ -203,7 +212,8 @@ def index():
         output_code=output_code, 
         access_key=access_key,
         error=error,
-        info=info
+        info=info,
+        discord_url=DISCORD_INVITE_URL
     )
 
 app = app
