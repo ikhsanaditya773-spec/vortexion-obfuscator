@@ -19,8 +19,8 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       << VORTEXION NATIVE OBFUSCATOR (UNIVERSAL & DAILY LIMIT) >>
 ]]--"""
 
-# MASUKKAN LINK DISCORD KELOMPOK / COMMUNITY KAMU DI SINI
-DISCORD_INVITE_URL = "https://discord.gg/vortexior"  # Ganti dengan link Discord kamu!
+# LINK DISCORD RESMI KAMU
+DISCORD_INVITE_URL = "https://discord.gg/fFGmaHwvvJ"
 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
@@ -88,9 +88,32 @@ HTML_TEMPLATE = """
         h1 { color: #58a6ff; font-size: 30px; margin-bottom: 5px; text-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
         .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 15px; }
         
-        /* Tombol Discord */
-        .discord-btn { display: inline-flex; align-items: center; gap: 8px; background-color: #5865F2; color: white; padding: 8px 18px; border-radius: 20px; text-decoration: none; font-weight: bold; font-size: 13px; transition: 0.2s; box-shadow: 0 4px 10px rgba(88, 101, 242, 0.3); }
-        .discord-btn:hover { background-color: #4752C4; transform: translateY(-2px); }
+        /* Tombol Discord dengan Logo di Kiri */
+        .discord-btn { 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center;
+            gap: 10px; 
+            background-color: #5865F2; 
+            color: white; 
+            padding: 10px 22px; 
+            border-radius: 25px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            font-size: 14px; 
+            transition: all 0.2s ease-in-out; 
+            box-shadow: 0 4px 12px rgba(88, 101, 242, 0.35); 
+        }
+        .discord-btn:hover { 
+            background-color: #4752C4; 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 16px rgba(88, 101, 242, 0.5); 
+        }
+        .discord-icon { 
+            width: 20px; 
+            height: 20px; 
+            fill: currentColor; 
+        }
 
         .editor-container { display: flex; gap: 20px; margin-top: 10px; flex-wrap: wrap; }
         .box { flex: 1; min-width: 320px; display: flex; flex-direction: column; }
@@ -121,9 +144,13 @@ HTML_TEMPLATE = """
         <div class="header-box">
             <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
             <div class="subtitle">🔒 Universal Roblox Support (Limit: Free 1x/Hari | VIP Unlimited)</div>
+            
+            <!-- Tombol Discord dengan Logo di Kiri -->
             <a href="{{ discord_url }}" target="_blank" class="discord-btn">
-                <svg width="18" height="18" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a73.51,73.51,0,0,0,64.32,0c.87.69,1.76,1.37,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.51-51.11-18.91-72.12ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74C48.86,40.21,54,45.92,53.86,53,53.86,60,48.78,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.08-12.74,11.44-12.74C91.13,40.21,96.2,45.92,96.07,53,96.07,60,91,65.69,84.69,65.69Z"/></svg>
-                Join Discord VORTEXION
+                <svg class="discord-icon" viewBox="0 0 127.14 96.36">
+                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a73.51,73.51,0,0,0,64.32,0c.87.69,1.76,1.37,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.51-51.11-18.91-72.12ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74C48.86,40.21,54,45.92,53.86,53,53.86,60,48.78,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.08-12.74,11.44-12.74C91.13,40.21,96.2,45.92,96.07,53,96.07,60,91,65.69,84.69,65.69Z"/>
+                </svg>
+                <span>Join Discord VORTEXION</span>
             </a>
         </div>
 
