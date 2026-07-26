@@ -23,76 +23,95 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_var():
-    hex_str = ''.join(random.choices("0123456789abcdef", k=8))
-    return f"v_0x{hex_str}"
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return "_" + ''.join(random.choices(chars, k=10))
 
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Hapus komentar
+    # 1. Bersihkan komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Ekstrak semua string dan ubah menjadi String Table Lookup
+    # 2. Ekstrak string/teks agar masuk ke tabel enkripsi byte
     strings_found = []
-    
     def extract_strings(match):
         content = match.group(1) or match.group(2) or ""
         idx = len(strings_found)
         strings_found.append(content)
-        return f"__STR_LUT__[{idx + 1}]"
+        return f"__STR__[ {idx + 1} ]"
 
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
 
-    # 3. Kompres kode menjadi 1 baris
-    lines = [line.strip() for line in code_with_lut.splitlines() if line.strip()]
+    # 3. Ambil semua kata unik (variabel/nama fungsi) untuk di-mangling
+    # Mengecualikan keyword bawaan Lua/Luau agar script tidak syntax error
+    lua_keywords = {
+        'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 
+        'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 
+        'return', 'then', 'true', 'until', 'while', 'self', 'ipairs', 'pairs', 
+        'table', 'string', 'math', 'print', 'workspace', 'game', 'script', 'coroutine'
+    }
+    
+    tokens = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', code_with_lut))
+    token_map = {}
+    for t in tokens:
+        if t not in lua_keywords and not t.startswith('__'):
+            token_map[t] = generate_var()
+
+    # Ganti variabel di kode dengan nama acak
+    def replace_tokens(match):
+        word = match.group(0)
+        return token_map.get(word, word)
+
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
+
+    # Kompres menjadi 1 baris
+    lines = [line.strip() for line in mangled_code.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 4. Buat String Table (Encrypted Array)
+    # 4. Enkripsi String ke Byte Array
     encoded_strings = []
     for s in strings_found:
         bytes_list = [str(ord(c)) for c in s]
         if bytes_list:
-            encoded_strings.append(f"{{ {','.join(bytes_list)} }}")
+            encoded_strings.append(f"{{{','.join(bytes_list)}}}")
         else:
             encoded_strings.append("{}")
 
     str_lut_data = "{" + ",".join(encoded_strings) + "}"
 
-    # 5. Variabel acak untuk Engine Internal
-    v_lut_raw = generate_var()
-    v_lut_out = generate_var()
-    v_dec_fn = generate_var()
-    v_main_fn = generate_var()
+    # 5. Variabel Engine Acak
+    v_raw = generate_var()
+    v_out = generate_var()
+    v_fn = generate_var()
+    v_run = generate_var()
 
-    # 6. Susun Engine Pelindung
+    # 6. Susun Engine Utama
     engine = f"""
-local {v_lut_raw} = {str_lut_data}
-local {v_lut_out} = {{}}
-local function {v_dec_fn}({generate_var()})
-    local {generate_var()} = {{}}
-    for _, {generate_var()} in ipairs({v_lut_raw}[{generate_var()}]) do
-        table.insert({generate_var()}, utf8.char({generate_var()}))
+local {v_raw} = {str_lut_data}
+local {v_out} = {{}}
+local function {v_fn}(idx)
+    local t = {{}}
+    for _, b in ipairs({v_raw}[idx]) do
+        table.insert(t, utf8.char(b))
     end
-    return table.concat({generate_var()})
+    return table.concat(t)
 end
-setmetatable({v_lut_out}, {{
-    __index = function(_, {generate_var()})
-        return {v_dec_fn}({generate_var()})
+setmetatable({v_out}, {{
+    __index = function(_, k)
+        return {v_fn}(k)
     end
 }})
-local __STR_LUT__ = {v_lut_out}
-local {v_main_fn} = function(...)
+local __STR__ = {v_out}
+local {v_run} = function(...)
     {compact_code}
 end
-return {v_main_fn}(...)
+return {v_run}(...)
 """
 
-    # Buat output menjadi 1 baris utuh
     one_liner = " ".join([l.strip() for l in engine.splitlines() if l.strip()])
-
     return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
 HTML_TEMPLATE = """
