@@ -4,7 +4,6 @@ import random
 
 app = Flask(__name__)
 
-# --- HEADER ASCII ART VORTEXION ---
 ASCII_ART_VORTEXION = r"""
 --[[
 VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
@@ -26,32 +25,44 @@ def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "_" + ''.join(random.choices(chars, k=8))
 
-# Lista Kata Kunci & Properti Bawaan Roblox (TIDAK BOLEH DIACHAK)
+# Whitelist Kata Kunci Lua & Methods/Events Roblox agar tidak bernilai nil
 ROBLOX_KEYWORDS = {
-    # Lua Keywords
+    # Lua Keywords & Global Functions
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
     'true', 'until', 'while', 'self', 'ipairs', 'pairs', 'table', 'string', 
     'math', 'print', 'warn', 'error', 'pcall', 'xpcall', 'select', 'type', 
     'tostring', 'tonumber', 'setmetatable', 'getmetatable', 'utf8', 'coroutine',
-    # Roblox Services & Classes
-    'game', 'workspace', 'script', 'Instance', 'Vector3', 'CFrame', 'Color3', 
-    'UDim2', 'Enum', 'TweenInfo', 'Task', 'task', 'delay', 'wait', 'spawn',
-    # Common Roblox Methods & Properties
-    'GetService', 'WaitForChild', 'FindFirstChild', 'Connect', 'FireServer', 
-    'FireAllClients', 'FireClient', 'OnServerEvent', 'OnClientEvent', 
-    'Parent', 'Name', 'Value', 'Position', 'Size', 'Destroy', 'Clone'
+    'unpack', 'next', 'assert', 'rawget', 'rawset', 'rawequal', 'typeof',
+    
+    # Roblox Globals & Datatypes
+    'game', 'workspace', 'script', 'Instance', 'Vector3', 'Vector2', 'CFrame', 
+    'Color3', 'UDim2', 'UDim', 'Enum', 'TweenInfo', 'Task', 'task', 'delay', 
+    'wait', 'spawn', 'tick', 'time', 'os', 'shared', '_G', 'Ray', 'RaycastParams',
+    
+    # Common Roblox Services
+    'Players', 'ReplicatedStorage', 'ServerScriptService', 'ServerStorage', 
+    'TweenService', 'UserInputService', 'RunService', 'HttpService', 
+    'SoundService', 'Lighting', 'StarterGui', 'StarterPack', 'Debris',
+    
+    # Common Methods, Events & Properties
+    'GetService', 'WaitForChild', 'FindFirstChild', 'FindFirstChildOfClass',
+    'Connect', 'Once', 'Wait', 'FireServer', 'FireAllClients', 'FireClient', 
+    'OnServerEvent', 'OnClientEvent', 'InvokeServer', 'InvokeClient', 
+    'OnServerInvoke', 'OnClientInvoke', 'Parent', 'Name', 'Value', 'Position', 
+    'Size', 'Destroy', 'Clone', 'ClearAllChildren', 'GetChildren', 'GetDescendants',
+    'IsA', 'Play', 'Stop', 'Pause', 'Resume', 'AddItem'
 }
 
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Hapus komentar
+    # 1. Bersihkan Komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Ekstrak string agar dienkripsi ke Array Byte (Termasuk teks Remote/Sound ID)
+    # 2. Ekstrak String ke Enkripsi Array Byte
     strings_found = []
     def extract_strings(match):
         content = match.group(1) or match.group(2) or ""
@@ -62,20 +73,26 @@ def obfuscate_roblox_script(lua_code):
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
 
-    # 3. Mengacak Variabel LOKAL saja
-    tokens = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', code_with_lut))
+    # 3. Kumpulkan variabel lokal untuk di-mangling
+    # Hanya acak identifier yang diawali keyword 'local' atau 'function'
+    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
+    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
+    
+    targets_to_mangle = local_vars.union(func_vars)
     token_map = {}
-    for t in tokens:
+
+    for t in targets_to_mangle:
         if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
             token_map[t] = generate_var()
 
+    # Hanya ganti variabel lokal yang cocok agar method/event Roblox tidak tersenggol
     def replace_tokens(match):
         word = match.group(0)
         return token_map.get(word, word)
 
     mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
 
-    # 4. Buat String Table Enkripsi Byte
+    # 4. Buat Tabel Look-Up String
     encoded_strings = []
     for s in strings_found:
         bytes_list = [str(ord(c)) for c in s]
@@ -86,13 +103,12 @@ def obfuscate_roblox_script(lua_code):
 
     str_lut_data = "{" + ",".join(encoded_strings) + "}"
 
-    # 5. Variable Engine
     v_raw = generate_var()
     v_out = generate_var()
     v_fn = generate_var()
     v_run = generate_var()
 
-    # 6. Susun Output
+    # 5. Rakit Engine Luau
     engine = f"""
 local {v_raw} = {str_lut_data}
 local {v_out} = {{}}
