@@ -49,11 +49,10 @@ def obfuscate_native_one_liner(lua_code):
 
     obfuscated_code = re.sub(r'"([^"\\]*(\\.[^"\\]*)*)"|\'([^\'\\]*(\\.[^\'\\]*)*)\'', string_replacer, lua_code)
 
-    # Menghapus newlines dari script input agar bisa digabung
     clean_user_code = " ".join([line.strip() for line in obfuscated_code.splitlines() if line.strip()])
 
-    # Dibuat rapat jadi 1 baris utuh!
-    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do {v_res}[{v_i}]=string.char(bit32.bxor({v_bytes}[{v_i}],{v_key})) end return table.concat({v_res}) end (function() {clean_user_code} end)()"
+    # DIPERBAIKI: Tambahan 'end)()' agar penutup fungsi lengkap dan tidak error <eof>
+    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do {v_res}[{v_i}]=string.char(bit32.bxor({v_bytes}[{v_i}],{v_key})) end return table.concat({v_res}) end;(function() {clean_user_code} end)()"
 
     return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
 
