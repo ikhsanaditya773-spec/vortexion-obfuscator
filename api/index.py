@@ -16,7 +16,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX SERVICE SAFE) >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX STABLE) >>
 ]]--
 """
 
@@ -24,9 +24,9 @@ VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return "_" + ''.join(random.choices(chars, k=8))
+    return "_" + ''.join(random.choices(chars, k=10))
 
-# Whitelist Luau & Roblox API Lengkap
+# Semua keyword, global function, dan API Roblox diproteksi total
 ROBLOX_KEYWORDS = {
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
@@ -53,45 +53,43 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Hapus Komentar
+    # 1. Bersihkan Komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Amankan String Literals DULU (agar isi string tidak ikut ter-replace mangling)
+    # 2. Isolasi String agar tidak terganggu saat Mangle
     strings_found = []
-    def extract_strings(match):
-        content = match.group(1) if match.group(1) is not None else match.group(2)
-        if content is None:
-            content = ""
-        b64_str = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-        idx = len(strings_found)
-        strings_found.append(b64_str)
-        return f"__STR__[{idx + 1}]"
-
-    # Regex String
-    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    code_protected_strings = re.sub(string_pattern, extract_strings, clean_code)
-
-    # 3. Cari Variabel Lokal & Fungsi Lokal untuk di-mangle
-    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_protected_strings))
-    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_protected_strings))
     
-    targets_to_mangle = local_vars.union(func_vars)
+    def replace_string(match):
+        s = match.group(0)
+        # Ambil isi string tanpa tanda petik
+        content = s[1:-1]
+        b64_val = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+        idx = len(strings_found) + 1
+        strings_found.append(b64_val)
+        return f"__STR__[{idx}]"
+
+    # Match string petik ganda maupun tunggal
+    string_pattern = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\''
+    code_no_strings = re.sub(string_pattern, replace_string, clean_code)
+
+    # 3. Cari Variabel Lokal murni untuk di-mangle
+    local_declarations = re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_no_strings)
+    
     token_map = {}
+    for var in set(local_declarations):
+        if var not in ROBLOX_KEYWORDS and not var.startswith('__'):
+            token_map[var] = generate_var()
 
-    for t in targets_to_mangle:
-        if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
-            token_map[t] = generate_var()
-
-    # Hanya replace kata yang merupakan variabel lokal murni
-    def replace_tokens(match):
+    # Mangle variabel lokal saja
+    def replace_var(match):
         word = match.group(0)
         return token_map.get(word, word)
 
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_protected_strings)
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_var, code_no_strings)
 
-    # 4. Buat Tabel String Lookup
-    str_lut_data = "{" + ",".join([f'"{s}"' for s in strings_found]) + "}"
+    # 4. Buat String Table Base64
+    str_table_content = "{" + ",".join([f'"{s}"' for s in strings_found]) + "}"
 
     v_raw = generate_var()
     v_out = generate_var()
@@ -99,14 +97,14 @@ def obfuscate_roblox_script(lua_code):
     v_b64 = generate_var()
     v_run = generate_var()
 
-    # 5. Runtime Engine Luau
+    # 5. Output Runtime Luau Engine yang Ringkas dan Stabil
     engine = f"""
-local {v_raw} = {str_lut_data}
+local {v_raw} = {str_table_content}
 local {v_b64} = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-local function {v_fn}(data)
-    if not data or #data == 0 then return "" end
-    data = string.gsub(data, '[^'..{v_b64}..'=]', '')
-    return (data:gsub('.', function(x)
+local function {v_fn}(d)
+    if not d or #d == 0 then return "" end
+    d = string.gsub(d, '[^'..{v_b64}..'=]', '')
+    return (d:gsub('.', function(x)
         if (x == '=') then return '' end
         local r,f='',( {v_b64}:find(x)-1 )
         for i=6,1,-1 do r=r..(f%2^i - f%2^(i-1) > 0 and '1' or '0') end
@@ -117,7 +115,6 @@ local function {v_fn}(data)
         return string.char(c)
     end))
 end
-
 local {v_out} = {{}}
 setmetatable({v_out}, {{
     __index = function(_, k)
