@@ -15,7 +15,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << VORTEXION NATIVE OBFUSCATOR (FIXED CHAR RANGE) >>
+      << VORTEXION NATIVE OBFUSCATOR (MODULE SCRIPT SUPPORT) >>
 ]]--"""
 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
@@ -25,12 +25,10 @@ def generate_var():
     return "_" + ''.join(random.choices(chars, k=14))
 
 def safe_encrypt_string(text, key):
-    """Enkripsi aman dengan konversi byte yang divalidasi ke range 0-255"""
-    # Mengabaikan karakter escape Luau yang bikin corrupt saat di-decode Python
     text = text.encode('utf-8', 'ignore').decode('utf-8')
     bytes_list = []
     for c in text:
-        byte_val = (ord(c) ^ key) % 256  # Memastikan byte selalu 0-255
+        byte_val = (ord(c) ^ key) % 256
         bytes_list.append(str(byte_val))
     return "{" + ",".join(bytes_list) + "}"
 
@@ -46,11 +44,11 @@ def obfuscate_native_safe(lua_code):
     v_i = generate_var()
     v_res = generate_var()
 
-    # 1. Hapus semua komentar Lua agar 1 baris tidak terputus
+    # 1. Hapus semua komentar Lua
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Enkripsi String dengan penanganan karakter aman
+    # 2. Enkripsi String
     def string_replacer(match):
         raw_str = match.group(0)[1:-1]
         if not raw_str:
@@ -58,18 +56,17 @@ def obfuscate_native_safe(lua_code):
         encrypted_array = safe_encrypt_string(raw_str, xor_key)
         return f'{v_decrypt}({encrypted_array})'
 
-    # Hanya tangkap string sederhana tanpa memicu bentrok escape sequence
     obfuscated_code = re.sub(r'"([^"\\]*(\\.[^"\\]*)*)"|\'([^\'\\]*(\\.[^\'\\]*)*)\'', string_replacer, clean_code)
 
-    # 3. Gabung baris & bersihkan spasi ganda
+    # 3. Gabung baris & bersihkan semicolon berlebih
     lines = [line.strip() for line in obfuscated_code.splitlines() if line.strip()]
     raw_joined = " ".join(lines)
     
     cleaned_joined = re.sub(r';\s*;+', ';', raw_joined)
     cleaned_joined = re.sub(r'^\s*;+', '', cleaned_joined)
 
-    # 4. Engine Decompressor Native dengan Proteksi Range (0-255)
-    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do local b=bit32.bxor({v_bytes}[{v_i}],{v_key})%256 {v_res}[{v_i}]=string.char(b) end return table.concat({v_res}) end task.spawn(function() {cleaned_joined} end)"
+    # 4. WRAPPER KHUSUS MODULE SCRIPT (Menggunakan IIFE (function() ... end)() agar return value-nya bisa diteruskan)
+    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do local b=bit32.bxor({v_bytes}[{v_i}],{v_key})%256 {v_res}[{v_i}]=string.char(b) end return table.concat({v_res}) end return (function() {cleaned_joined} end)()"
 
     return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
 
@@ -110,13 +107,13 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
-        <div class="subtitle">🔒 No Loadstring Required - Fixed Character Byte System</div>
+        <div class="subtitle">🔒 Supported for ServerScript, LocalScript & ModuleScript</div>
 
         <form method="POST">
             <div class="editor-container">
                 <div class="box">
                     <label>📝 Script Roblox Asli (Input):</label>
-                    <textarea name="input_code" placeholder="Paste script Music Server / UI kamu di sini...">{{ input_code }}</textarea>
+                    <textarea name="input_code" placeholder="Paste script Music Server / ModuleScript kamu di sini...">{{ input_code }}</textarea>
                 </div>
                 <div class="box">
                     <label>🛡️ Hasil Obfuscation (Output):</label>
@@ -132,7 +129,7 @@ HTML_TEMPLATE = """
                 <input type="text" name="access_key" placeholder="Masukkan Kode Key Premium..." value="{{ access_key }}">
             </div>
 
-            <button type="submit" class="btn-main">🛡️ Obfuscate Script</button>
+            <button type="submit" class="btn-main">🛡️ Obfuscate ModuleScript</button>
         </form>
 
         {% if error %}
