@@ -15,7 +15,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX AUDIO COMPATIBLE) >>
 ]]--
 """
 
@@ -25,7 +25,7 @@ def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "_" + ''.join(random.choices(chars, k=8))
 
-# Whitelist Luau & Roblox API lengkap
+# Whitelist Luau & Roblox API
 ROBLOX_KEYWORDS = {
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
@@ -56,22 +56,20 @@ def obfuscate_roblox_script(lua_code):
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Extract String aman
-    strings_found = []
-    def extract_strings(match):
-        content = match.group(1) if match.group(1) is not None else match.group(2)
-        if content is None:
-            content = ""
-        idx = len(strings_found)
-        strings_found.append(content)
-        return f"__STR__[{idx + 1}]"
+    # 2. Amankan string dengan format Escape Character Luau bawaan (\xxx)
+    def string_to_luau_escape(match):
+        s = match.group(1) if match.group(1) is not None else match.group(2)
+        if not s:
+            return '""'
+        escaped = "".join([f"\\{ord(c):03d}" for c in s])
+        return f'"{escaped}"'
 
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
+    code_safe_strings = re.sub(string_pattern, string_to_luau_escape, clean_code)
 
-    # 3. Mangle Variabel Lokal & Fungsi saja
-    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
-    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_with_lut))
+    # 3. Mangle Variabel Lokal & Fungsi Saja
+    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
+    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
     
     targets_to_mangle = local_vars.union(func_vars)
     token_map = {}
@@ -84,43 +82,12 @@ def obfuscate_roblox_script(lua_code):
         word = match.group(0)
         return token_map.get(word, word)
 
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_with_lut)
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_safe_strings)
 
-    # 4. Enkripsi Byte Array String
-    encoded_strings = []
-    for s in strings_found:
-        bytes_list = [str(ord(c)) for c in s]
-        if bytes_list:
-            encoded_strings.append(f"{{{','.join(bytes_list)}}}")
-        else:
-            encoded_strings.append("{}")
-
-    str_lut_data = "{" + ",".join(encoded_strings) + "}"
-
-    v_raw = generate_var()
-    v_out = generate_var()
-    v_fn = generate_var()
+    # 4. Bungkus dalam Anonymous Function
     v_run = generate_var()
 
-    # 5. Runtime Engine Luau dengan Penanganan Karakter UTF-8 Presisi
     engine = f"""
-local {v_raw} = {str_lut_data}
-local {v_out} = {{}}
-local function {v_fn}(idx)
-    local bytes = {v_raw}[idx]
-    if not bytes or #bytes == 0 then return "" end
-    local chars = {{}}
-    for i = 1, #bytes do
-        chars[i] = string.char(bytes[i])
-    end
-    return table.concat(chars)
-end
-setmetatable({v_out}, {{
-    __index = function(_, k)
-        return {v_fn}(k)
-    end
-}})
-local __STR__ = {v_out}
 local {v_run} = function(...)
     {mangled_code}
 end
