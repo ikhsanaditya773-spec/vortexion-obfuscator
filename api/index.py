@@ -4,24 +4,31 @@ import re
 
 app = Flask(__name__)
 
-# Daftar Key VIP yang Valid
+# Header ASCII Art khas VORTEXION (Kembali Hadir!)
+ASCII_ART_VORTEXION = r"""--[[
+VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
+ VVV          VVV OOOOOOOOOOO RRRRRRRRRRRTTTTTTTTTTTEEEEEEEEEE  XXXXX    XXXXX  I OOOOOOOOOOO NNNN   NNNN
+  VVV        VVV OOOOO   OOOOO RRR     RRR   TTTT   EEE           XXXXX  XXXXX   I OOOOO   OOOOONNNNN  NNNN
+   VVV      VVV  OOOO     OOOO RRRRRRRRRRR   TTTT   EEEEEEEE       XXXXXXXXXX    I OOOO     OOOONNNNNN NNNN
+    VVV    VVV   OOOO     OOOO RRRRRRRRRR    TTTT   EEEEEEEE        XXXXXXXX     I OOOO     OOOONNN NNNNNNN
+     VVV  VVV    OOOOO   OOOOO RRR   RRRR    TTTT   EEE            XXXXX  XXXXX  I OOOOO   OOOOONNN  NNNNNN
+      VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
+       VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
+
+      << VORTEXION NATIVE OBFUSCATOR (SAFE ONE-LINER) >>
+]]--"""
+
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_var():
-    """Membuat nama variabel acak super rumit khas obfuscator"""
     chars = "lI1O0_v"
     return "_" + ''.join(random.choices(chars, k=14))
 
 def encrypt_string_to_xor(text, key):
-    """Mengubah string biasa menjadi Byte Array yang di-XOR"""
     bytes_list = [str(ord(c) ^ key) for c in text]
     return "{" + ",".join(bytes_list) + "}"
 
-def obfuscate_native_pure_oneliner(lua_code):
-    """
-    ENGINE OBFUSCATOR 1 BARIS MURNI (No Loadstring Required)
-    Aman dari error <eof> karena membersihkan komentar Lua secara otomatis.
-    """
+def obfuscate_native_safe_oneliner(lua_code):
     if not lua_code.strip():
         return ""
 
@@ -33,12 +40,11 @@ def obfuscate_native_pure_oneliner(lua_code):
     v_i = generate_var()
     v_res = generate_var()
 
-    # 1. HAPUS SEMUA KOMENTAR LUA (-- dan --[[ ]])
-    # Ini kunci utama agar kode tidak patah/error <eof> saat digabung jadi 1 baris!
+    # 1. Hapus semua komentar Lua agar tidak merusak 1 baris
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. ENKRIPSI STRING TEKS / ID LAGU / REMOTE EVENT
+    # 2. Enkripsi semua string / ID Lagu / RemoteEvent
     def string_replacer(match):
         raw_str = match.group(0)[1:-1]
         if not raw_str:
@@ -48,24 +54,29 @@ def obfuscate_native_pure_oneliner(lua_code):
 
     obfuscated_code = re.sub(r'"([^"\\]*(\\.[^"\\]*)*)"|\'([^\'\\]*(\\.[^\'\\]*)*)\'', string_replacer, clean_code)
 
-    # 3. BERSIHKAN ENTER DAN GABUNGKAN TIAP BARIS DENGAN TITIK KOMA (;)
+    # 3. Gabungkan tiap baris & bersihkan spasi/titik koma ganda
     lines = [line.strip() for line in obfuscated_code.splitlines() if line.strip()]
-    pure_one_line_code = ";".join(lines)
+    raw_joined = " ".join(lines)
+    
+    # Hapus double semicolon atau pembatas tidak valid yang memicu error 'got ;'
+    cleaned_joined = re.sub(r';\s*;+', ';', raw_joined)
+    cleaned_joined = re.sub(r'^\s*;+', '', cleaned_joined)
 
-    # 4. BUNGKUS DALAM NATIVE WRAPPER (1 BARIS MURNI)
-    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}};for {v_i}=1,#{v_bytes} do {v_res}[{v_i}]=string.char(bit32.bxor({v_bytes}[{v_i}],{v_key})) end;return table.concat({v_res}) end;task.spawn(function() {pure_one_line_code};end)"
+    # 4. Bungkus dalam One-Liner Native Engine
+    one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do {v_res}[{v_i}]=string.char(bit32.bxor({v_bytes}[{v_i}],{v_key})) end return table.concat({v_res}) end task.spawn(function() {cleaned_joined} end)"
 
-    return one_liner_lua
+    # Sertakan kembali ASCII Header khas VORTEXION!
+    return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
 
 
-# Template Tampilan UI Web (HTML + CSS)
+# Template Tampilan UI Web
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VORTEXION - Native Pure One-Liner Obfuscator</title>
+    <title>VORTEXION - Native Obfuscator</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 1050px; margin: 0 auto; }
@@ -95,8 +106,8 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h1>⚡ VORTEXION PURE ONE-LINER ⚡</h1>
-        <div class="subtitle">🔒 Murni 1 Baris - Native Roblox (Tanpa AllowLoadstring)</div>
+        <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
+        <div class="subtitle">🔒 No Loadstring Required - Safe One-Liner Output</div>
 
         <form method="POST">
             <div class="editor-container">
@@ -105,8 +116,8 @@ HTML_TEMPLATE = """
                     <textarea name="input_code" placeholder="Paste script Music Server / UI kamu di sini...">{{ input_code }}</textarea>
                 </div>
                 <div class="box">
-                    <label>🛡️ Hasil Obfuscation (Output 1 Baris Murni):</label>
-                    <textarea id="outputCode" readonly placeholder="Hasil 1 baris rapat akan muncul di sini...">{{ output_code }}</textarea>
+                    <label>🛡️ Hasil Obfuscation (Output):</label>
+                    <textarea id="outputCode" readonly placeholder="Hasil protection akan muncul di sini...">{{ output_code }}</textarea>
                     <div class="action-btns">
                         <button type="button" class="btn-secondary" onclick="copyOutput()">📋 Salin Script (Copy Output)</button>
                     </div>
@@ -118,7 +129,7 @@ HTML_TEMPLATE = """
                 <input type="text" name="access_key" placeholder="Masukkan Kode Key Premium..." value="{{ access_key }}">
             </div>
 
-            <button type="submit" class="btn-main">🚀 Obfuscate 1 Baris Murni</button>
+            <button type="submit" class="btn-main">🛡️ Obfuscate Safe One-Liner</button>
         </form>
 
         {% if error %}
@@ -131,7 +142,7 @@ HTML_TEMPLATE = """
             const outputText = document.getElementById("outputCode");
             if (!outputText.value.trim()) return alert("Belum ada kode untuk disalin!");
             navigator.clipboard.writeText(outputText.value);
-            alert("✅ Hasil 1 Baris Murni berhasil disalin!");
+            alert("✅ Hasil Obfuscation berhasil disalin!");
         }
     </script>
 </body>
@@ -152,7 +163,7 @@ def index():
         if access_key and access_key not in VALID_KEYS:
             error = "❌ Kode Key Premium tidak valid!"
         else:
-            output_code = obfuscate_native_pure_oneliner(input_code)
+            output_code = obfuscate_native_safe_oneliner(input_code)
 
     return render_template_string(
         HTML_TEMPLATE, 
