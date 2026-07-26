@@ -23,7 +23,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_random_name():
-    hex_str = ''.join(random.choices("0123456789ABCDEF", k=5))
+    hex_str = ''.join(random.choices("0123456789ABCDEF", k=6))
     return f"v_{hex_str}"
 
 def obfuscate_roblox_script(lua_code):
@@ -37,23 +37,26 @@ def obfuscate_roblox_script(lua_code):
     lines = [line.strip() for line in clean_code.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 2. Mengubah seluruh karakter ke Array UTF-8 Byte
-    codepoints = [str(ord(c)) for c in compact_code]
-    encoded_data = ",".join(codepoints)
+    # 2. Enkripsi Setiap String dalam Script menjadi utf8.char(...)
+    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
+    
+    def string_to_utf8(s):
+        codes = [str(ord(c)) for c in s]
+        return f"utf8.char({','.join(codes)})" if codes else '""'
 
-    # 3. Randomize Nama Variabel Engine
-    v_arr = generate_random_name()
-    v_str = generate_random_name()
-    v_fn = generate_random_name()
-    v_exec = generate_random_name()
+    def replacer(match):
+        content = match.group(1) or match.group(2) or ""
+        return string_to_utf8(content)
 
-    # 4. Luau Execution Engine Aman (Tanpa setfenv yang memicu error)
-    lua_engine = f"local {v_arr}={{ {encoded_data} }}; local {v_str}=\"\"; for _,v in ipairs({v_arr}) do {v_str}={v_str}..utf8.char(v) end; local {v_fn}=assert(loadstring or load)({v_str}); local {v_exec}=function(...) return {v_fn}(...) end; return {v_exec}(...)"
+    processed_code = re.sub(string_pattern, replacer, compact_code)
 
-    # Menjadikan output tepat 1 baris
-    one_liner = " ".join([l.strip() for l in lua_engine.splitlines()])
+    # 3. Menerapkan Native Execution Engine (Bebas loadstring & Aman 100%)
+    v_main = generate_random_name()
+    v_args = generate_random_name()
 
-    return f"{ASCII_ART_VORTEXION}\n{one_liner}"
+    native_wrapper = f"local {v_main} = function(...) {processed_code} end; return {v_main}(...)"
+
+    return f"{ASCII_ART_VORTEXION}\n{native_wrapper}"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
