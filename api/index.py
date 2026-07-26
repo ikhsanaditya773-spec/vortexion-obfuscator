@@ -1,10 +1,9 @@
 from flask import Flask, render_template_string, request
-import re
 import random
 
 app = Flask(__name__)
 
-# --- HEADER ASCII ART ---
+# --- HEADER ASCII ART VORTEXION ---
 ASCII_ART_VORTEXION = r"""
 --[[
 VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX I  OOOOOOO  NNNN   NNNN
@@ -22,38 +21,37 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 
 def generate_random_name():
     hex_str = ''.join(random.choices("0123456789ABCDEF", k=5))
-    return f"_0x{hex_str}"
-
-def encode_string_to_utf8(match):
-    str_content = match.group(1) or match.group(2)
-    if not str_content:
-        return '""'
-    
-    codepoints = [str(ord(char)) for char in str_content]
-    return f"utf8.char({', '.join(codepoints)})"
+    return f"v_{hex_str}"
 
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Obfuskasi semua teks/string menjadi utf8.char(...)
+    # 1. Obfuskasi string sederhana menggunakan array UTF8
+    def encode_str(s):
+        codes = [str(ord(c)) for c in s]
+        return f"utf8.char({','.join(codes)})" if codes else '""'
+
+    # 2. Encapsulate seluruh baris menjadi 1 baris kompak (Compact Execution Wrapper)
+    # Hapus baris kosong & whitespace tak perlu
+    lines = [line.strip() for line in lua_code.splitlines() if line.strip()]
+    compact_code = " ".join(lines)
+
+    # 3. Pengacakan String Di Dalam Kode Saja
+    import re
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    obfuscated = re.sub(string_pattern, encode_string_to_utf8, lua_code)
-
-    # 2. Obfuskasi variabel lokal sederhana
-    var_pattern = r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)'
-    variables = set(re.findall(var_pattern, lua_code))
     
-    var_map = {}
-    blacklist = ['self', 'script', 'game', 'workspace', 'plugin', 'shared', '_G']
-    for var in variables:
-        if var not in blacklist:
-            var_map[var] = generate_random_name()
+    def replacer(match):
+        content = match.group(1) or match.group(2) or ""
+        return encode_str(content)
 
-    for old_var, new_var in var_map.items():
-        obfuscated = re.sub(r'\b' + old_var + r'\b', new_var, obfuscated)
+    clean_one_line = re.sub(string_pattern, replacer, compact_code)
 
-    return f"{ASCII_ART_VORTEXION}\n{obfuscated}"
+    # 4. Bungkus dalam do...end 1 baris
+    var_wrapper = generate_random_name()
+    one_liner = f"local {var_wrapper}=function(...) {clean_one_line} end; return {var_wrapper}(...)"
+
+    return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
 # --- TAMPILAN WEB ---
 HTML_TEMPLATE = """
