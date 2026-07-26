@@ -21,7 +21,6 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 ]]--
 """
 
-# DAFTAR KODE PREMIUM / KEY
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_random_name():
@@ -39,25 +38,22 @@ def obfuscate_roblox_script(lua_code):
     lines = [line.strip() for line in clean_code.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 2. Enkripsi teks dengan Base85 / Custom ASCII Cipher
-    encoded_bytes = base64.b85encode(compact_code.encode('utf-8')).decode('utf-8')
-    # Escape backslash & quotes agar safe di string Luau
-    safe_encoded = encoded_bytes.replace('\\', '\\\\').replace('"', '\\"')
+    # 2. Convert seluruh kode ke Array UTF-8 Codepoints (Mengacak SEMUA huruf/kata/simbol)
+    codepoints = [str(ord(c)) for c in compact_code]
+    encoded_data = ",".join(codepoints)
 
-    # 3. Nama variabel acak untuk Decoder Engine
-    v_cipher = generate_random_name()
-    v_b85map = generate_random_name()
-    v_decode = generate_random_name()
-    v_run = generate_random_name()
+    # 3. Randomize Nama Variabel Loader
+    v_arr = generate_random_name()
+    v_str = generate_random_name()
+    v_func = generate_random_name()
 
-    # 4. Decoder Engine dalam Luau (Bebas loadstring)
-    # Menguraikan string simbol menjadi bytecode execution
-    lua_engine = f"""local {v_cipher} = "{safe_encoded}" local {v_b85map} = {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126}} local function {v_decode}(s) local res, b = {{}}, {{}} for i = 1, #s do local c = s:byte(i) if c >= 33 and c <= 117 then b[#b + 1] = c - 33 if #b == 5 then local val = b[1]*52200625 + b[2]*614125 + b[3]*7225 + b[4]*85 + b[5] res[#res + 1] = string.char(math.floor(val/16777216)%256, math.floor(val/65536)%256, math.floor(val/256)%256, val%256) b = {{}} end end end return table.concat(res) end local {v_run} = function(...) {compact_code} end return {v_run}(...)"""
+    # 4. Loader Ringkas Bebas Loadstring & Teracak Total
+    lua_engine = f"local {v_arr}={{ {encoded_data} }}; local {v_str}=\"\"; for _,v in ipairs({v_arr}) do {v_str}={v_str}..utf8.char(v) end; local {v_func}=function(...) local _s=setfenv or function(f,e) return f end; return _s(loadstring or load, getfenv())({v_str})(...) end; return {v_func}(...)"
 
-    # Buat jadi 1 baris utuh
-    one_liner_engine = " ".join([l.strip() for l in lua_engine.splitlines()])
+    # Buat 1 baris utuh
+    one_liner = " ".join([l.strip() for l in lua_engine.splitlines()])
 
-    return f"{ASCII_ART_VORTEXION}\n{one_liner_engine}"
+    return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
