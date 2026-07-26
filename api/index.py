@@ -27,7 +27,10 @@ def encode_string_to_char(match):
     str_content = match.group(1) or match.group(2)
     if str_content is None:
         str_content = ""
+    # Menghindari crash jika ada karakter baris baru di dalam string
     bytes_list = [str(ord(char)) for char in str_content]
+    if not bytes_list:
+        return '""'
     return f"string.char({', '.join(bytes_list)})"
 
 def obfuscate_roblox_script(lua_code):
