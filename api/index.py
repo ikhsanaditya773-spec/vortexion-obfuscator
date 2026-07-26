@@ -22,41 +22,78 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
-def generate_random_name():
-    hex_str = ''.join(random.choices("0123456789ABCDEF", k=6))
-    return f"v_{hex_str}"
+def generate_var():
+    hex_str = ''.join(random.choices("0123456789abcdef", k=8))
+    return f"v_0x{hex_str}"
 
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Bersihkan komentar
+    # 1. Hapus komentar
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
+
+    # 2. Ekstrak semua string dan ubah menjadi String Table Lookup
+    strings_found = []
     
-    lines = [line.strip() for line in clean_code.splitlines() if line.strip()]
+    def extract_strings(match):
+        content = match.group(1) or match.group(2) or ""
+        idx = len(strings_found)
+        strings_found.append(content)
+        return f"__STR_LUT__[{idx + 1}]"
+
+    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
+    code_with_lut = re.sub(string_pattern, extract_strings, clean_code)
+
+    # 3. Kompres kode menjadi 1 baris
+    lines = [line.strip() for line in code_with_lut.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 2. Enkripsi Setiap String dalam Script menjadi utf8.char(...)
-    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
-    
-    def string_to_utf8(s):
-        codes = [str(ord(c)) for c in s]
-        return f"utf8.char({','.join(codes)})" if codes else '""'
+    # 4. Buat String Table (Encrypted Array)
+    encoded_strings = []
+    for s in strings_found:
+        bytes_list = [str(ord(c)) for c in s]
+        if bytes_list:
+            encoded_strings.append(f"{{ {','.join(bytes_list)} }}")
+        else:
+            encoded_strings.append("{}")
 
-    def replacer(match):
-        content = match.group(1) or match.group(2) or ""
-        return string_to_utf8(content)
+    str_lut_data = "{" + ",".join(encoded_strings) + "}"
 
-    processed_code = re.sub(string_pattern, replacer, compact_code)
+    # 5. Variabel acak untuk Engine Internal
+    v_lut_raw = generate_var()
+    v_lut_out = generate_var()
+    v_dec_fn = generate_var()
+    v_main_fn = generate_var()
 
-    # 3. Menerapkan Native Execution Engine (Bebas loadstring & Aman 100%)
-    v_main = generate_random_name()
-    v_args = generate_random_name()
+    # 6. Susun Engine Pelindung
+    engine = f"""
+local {v_lut_raw} = {str_lut_data}
+local {v_lut_out} = {{}}
+local function {v_dec_fn}({generate_var()})
+    local {generate_var()} = {{}}
+    for _, {generate_var()} in ipairs({v_lut_raw}[{generate_var()}]) do
+        table.insert({generate_var()}, utf8.char({generate_var()}))
+    end
+    return table.concat({generate_var()})
+end
+setmetatable({v_lut_out}, {{
+    __index = function(_, {generate_var()})
+        return {v_dec_fn}({generate_var()})
+    end
+}})
+local __STR_LUT__ = {v_lut_out}
+local {v_main_fn} = function(...)
+    {compact_code}
+end
+return {v_main_fn}(...)
+"""
 
-    native_wrapper = f"local {v_main} = function(...) {processed_code} end; return {v_main}(...)"
+    # Buat output menjadi 1 baris utuh
+    one_liner = " ".join([l.strip() for l in engine.splitlines() if l.strip()])
 
-    return f"{ASCII_ART_VORTEXION}\n{native_wrapper}"
+    return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
