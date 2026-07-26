@@ -1,7 +1,6 @@
 from flask import Flask, render_template_string, request
 import re
 import random
-import base64
 
 app = Flask(__name__)
 
@@ -16,7 +15,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX STABLE) >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX MUSIC TABLE SAFE) >>
 ]]--
 """
 
@@ -24,9 +23,9 @@ VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
 
 def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return "_" + ''.join(random.choices(chars, k=10))
+    return "_" + ''.join(random.choices(chars, k=8))
 
-# Semua keyword, global function, dan API Roblox diproteksi total
+# Whitelist Luau & Roblox API Lengkap
 ROBLOX_KEYWORDS = {
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
     'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
@@ -57,71 +56,39 @@ def obfuscate_roblox_script(lua_code):
     clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
     clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Isolasi String agar tidak terganggu saat Mangle
-    strings_found = []
-    
-    def replace_string(match):
-        s = match.group(0)
-        # Ambil isi string tanpa tanda petik
-        content = s[1:-1]
-        b64_val = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-        idx = len(strings_found) + 1
-        strings_found.append(b64_val)
-        return f"__STR__[{idx}]"
+    # 2. Amankan String Tanpa Merusak Tabel / Array ID
+    def str_to_byte_concat(match):
+        s = match.group(1) if match.group(1) is not None else match.group(2)
+        if not s:
+            return '""'
+        # Ubah string menjadi format string.char(...) yang 100% aman di Roblox
+        bytes_list = [str(ord(c)) for c in s]
+        return f"string.char({','.join(bytes_list)})"
 
-    # Match string petik ganda maupun tunggal
-    string_pattern = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\''
-    code_no_strings = re.sub(string_pattern, replace_string, clean_code)
+    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
+    code_safe_strings = re.sub(string_pattern, str_to_byte_concat, clean_code)
 
-    # 3. Cari Variabel Lokal murni untuk di-mangle
-    local_declarations = re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_no_strings)
+    # 3. Mangle Variabel & Function Lokal
+    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
+    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_safe_strings))
     
+    targets_to_mangle = local_vars.union(func_vars)
     token_map = {}
-    for var in set(local_declarations):
-        if var not in ROBLOX_KEYWORDS and not var.startswith('__'):
-            token_map[var] = generate_var()
 
-    # Mangle variabel lokal saja
-    def replace_var(match):
+    for t in targets_to_mangle:
+        if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
+            token_map[t] = generate_var()
+
+    def replace_tokens(match):
         word = match.group(0)
         return token_map.get(word, word)
 
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_var, code_no_strings)
+    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, code_safe_strings)
 
-    # 4. Buat String Table Base64
-    str_table_content = "{" + ",".join([f'"{s}"' for s in strings_found]) + "}"
-
-    v_raw = generate_var()
-    v_out = generate_var()
-    v_fn = generate_var()
-    v_b64 = generate_var()
+    # 4. Bungkus ke Runtime Function
     v_run = generate_var()
 
-    # 5. Output Runtime Luau Engine yang Ringkas dan Stabil
     engine = f"""
-local {v_raw} = {str_table_content}
-local {v_b64} = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-local function {v_fn}(d)
-    if not d or #d == 0 then return "" end
-    d = string.gsub(d, '[^'..{v_b64}..'=]', '')
-    return (d:gsub('.', function(x)
-        if (x == '=') then return '' end
-        local r,f='',( {v_b64}:find(x)-1 )
-        for i=6,1,-1 do r=r..(f%2^i - f%2^(i-1) > 0 and '1' or '0') end
-        return r
-    end):gsub('%d%d%d%d%d%d%d%d', function(x)
-        local c=0
-        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
-        return string.char(c)
-    end))
-end
-local {v_out} = {{}}
-setmetatable({v_out}, {{
-    __index = function(_, k)
-        return {v_fn}({v_raw}[k])
-    end
-}})
-local __STR__ = {v_out}
 local {v_run} = function(...)
     {mangled_code}
 end
