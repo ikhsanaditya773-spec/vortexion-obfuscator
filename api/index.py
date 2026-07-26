@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, request
 import random
 import re
+from datetime import datetime, date
 
 app = Flask(__name__)
 
@@ -15,10 +16,14 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << VORTEXION NATIVE OBFUSCATOR (MODULE SCRIPT SUPPORT) >>
+      << VORTEXION NATIVE OBFUSCATOR (UNIVERSAL & DAILY LIMIT) >>
 ]]--"""
 
 VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
+
+# System Tracking Daily Limit (Menyimpan IP & Tanggal Pemakaian)
+# Format: { "IP_ADDRESS": date_object }
+user_usage_tracker = {}
 
 def generate_var():
     chars = "lI1O0_v"
@@ -65,7 +70,7 @@ def obfuscate_native_safe(lua_code):
     cleaned_joined = re.sub(r';\s*;+', ';', raw_joined)
     cleaned_joined = re.sub(r'^\s*;+', '', cleaned_joined)
 
-    # 4. WRAPPER KHUSUS MODULE SCRIPT (Menggunakan IIFE (function() ... end)() agar return value-nya bisa diteruskan)
+    # 4. Engine Universal (Support ServerScript, LocalScript & ModuleScript)
     one_liner_lua = f"local {v_key}={xor_key};local function {v_decrypt}({v_bytes}) local {v_res}={{}} for {v_i}=1,#{v_bytes} do local b=bit32.bxor({v_bytes}[{v_i}],{v_key})%256 {v_res}[{v_i}]=string.char(b) end return table.concat({v_res}) end return (function() {cleaned_joined} end)()"
 
     return f"{ASCII_ART_VORTEXION}\n{one_liner_lua}"
@@ -102,18 +107,19 @@ HTML_TEMPLATE = """
         button.btn-main:hover { background-color: #2ea043; }
         
         .status-msg { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(248, 81, 73, 0.3); }
+        .info-msg { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; color: #7ee787; background: rgba(46, 160, 67, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(46, 160, 67, 0.3); }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>⚡ VORTEXION OBFUSCATOR ⚡</h1>
-        <div class="subtitle">🔒 Supported for ServerScript, LocalScript & ModuleScript</div>
+        <div class="subtitle">🔒 Universal Roblox Support (Limit: Free 1x/Hari | VIP Unlimited)</div>
 
         <form method="POST">
             <div class="editor-container">
                 <div class="box">
                     <label>📝 Script Roblox Asli (Input):</label>
-                    <textarea name="input_code" placeholder="Paste script Music Server / ModuleScript kamu di sini...">{{ input_code }}</textarea>
+                    <textarea name="input_code" placeholder="Paste Script, LocalScript, atau ModuleScript kamu di sini...">{{ input_code }}</textarea>
                 </div>
                 <div class="box">
                     <label>🛡️ Hasil Obfuscation (Output):</label>
@@ -126,14 +132,16 @@ HTML_TEMPLATE = """
 
             <div class="key-container">
                 <label>🔑 Key Premium VIP:</label>
-                <input type="text" name="access_key" placeholder="Masukkan Kode Key Premium..." value="{{ access_key }}">
+                <input type="text" name="access_key" placeholder="Kosongkan jika Free User (1x per hari)..." value="{{ access_key }}">
             </div>
 
-            <button type="submit" class="btn-main">🛡️ Obfuscate ModuleScript</button>
+            <button type="submit" class="btn-main">🛡️ Obfuscate Script</button>
         </form>
 
         {% if error %}
             <div class="status-msg">{{ error }}</div>
+        {% elif info %}
+            <div class="info-msg">{{ info }}</div>
         {% endif %}
     </div>
 
@@ -155,22 +163,47 @@ def index():
     output_code = ""
     access_key = ""
     error = None
+    info = None
+
+    # Mengambil IP Asli User
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if user_ip and ',' in user_ip:
+        user_ip = user_ip.split(',')[0].strip()
+
+    today = date.today()
 
     if request.method == "POST":
         input_code = request.form.get("input_code", "")
         access_key = request.form.get("access_key", "").strip()
 
-        if access_key and access_key not in VALID_KEYS:
+        # Cek apakah user menggunakan VIP Key
+        is_vip = access_key in VALID_KEYS
+
+        if access_key and not is_vip:
             error = "❌ Kode Key Premium tidak valid!"
         else:
-            output_code = obfuscate_native_safe(input_code)
+            # Jika BUKAN VIP, cek limit harian berdasarkan IP
+            if not is_vip:
+                last_used_date = user_usage_tracker.get(user_ip)
+                if last_used_date == today:
+                    error = "⚠️ Jatah gratis harian kamu sudah habis (1x/hari)! Masukkan Key VIP untuk penggunaan tanpa batas."
+                else:
+                    # Izinkan dan catat tanggal hari ini
+                    output_code = obfuscate_native_safe(input_code)
+                    user_usage_tracker[user_ip] = today
+                    info = "✅ Berhasil obfuscate! (Jatah gratis hari ini digunakan)"
+            else:
+                # VIP User: Langsung proses tanpa batas
+                output_code = obfuscate_native_safe(input_code)
+                info = "⚡ Berhasil obfuscate dengan VIP Access (Unlimited)!"
 
     return render_template_string(
         HTML_TEMPLATE, 
         input_code=input_code, 
         output_code=output_code, 
         access_key=access_key,
-        error=error
+        error=error,
+        info=info
     )
 
 app = app
