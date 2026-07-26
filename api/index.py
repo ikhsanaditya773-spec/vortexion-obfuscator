@@ -20,6 +20,9 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
 ]]--
 """
 
+# DAFTAR KODE PREMIUM / KEY (Bisa kamu tambah/ubah sesukamu)
+VALID_KEYS = ["VORTEXION-VIP-2026", "REMI-PREMIUM-KEY", "VORTEX-PRO"]
+
 def generate_random_name():
     hex_str = ''.join(random.choices("0123456789ABCDEF", k=5))
     return f"v_{hex_str}"
@@ -28,20 +31,16 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Hapus Komentar Multi-baris (--[[ ... ]]) & Komentar Satu Baris (-- ...)
-    clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code) # Hapus --[[ ]]
-    clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE) # Hapus -- komentar biasa
+    clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
+    clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
     
-    # 2. Obfuskasi string sederhana menggunakan array UTF8
     def encode_str(s):
         codes = [str(ord(c)) for c in s]
         return f"utf8.char({','.join(codes)})" if codes else '""'
 
-    # 3. Encapsulate & Kompres Kode
     lines = [line.strip() for line in clean_code.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 4. Enkripsi Teks/String Dalam Kode
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     
     def replacer(match):
@@ -50,13 +49,11 @@ def obfuscate_roblox_script(lua_code):
 
     clean_one_line = re.sub(string_pattern, replacer, compact_code)
 
-    # 5. Bungkus dalam Wrapper Anonymous Function 1 Baris
     var_wrapper = generate_random_name()
     one_liner = f"local {var_wrapper}=function(...) {clean_one_line} end; return {var_wrapper}(...)"
 
     return f"{ASCII_ART_VORTEXION}\n{one_liner}"
 
-# --- TAMPILAN WEB ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id">
@@ -67,32 +64,127 @@ HTML_TEMPLATE = """
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
-        h1 { text-align: center; color: #58a6ff; font-size: 28px; }
-        .editor-container { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+        h1 { text-align: center; color: #58a6ff; font-size: 28px; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #8b949e; margin-bottom: 25px; font-size: 14px; }
+        
+        .premium-banner { background-color: #1f242d; border: 1px solid #388bfd; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center; }
+        .premium-banner a { color: #58a6ff; font-weight: bold; text-decoration: none; }
+        .premium-banner a:hover { text-decoration: underline; }
+
+        .editor-container { display: flex; gap: 20px; margin-top: 10px; flex-wrap: wrap; }
         .box { flex: 1; min-width: 300px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 8px; color: #8b949e; }
-        textarea { width: 100%; height: 350px; background-color: #161b22; color: #7ee787; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-sizing: border-box; resize: vertical; white-space: pre-wrap; word-wrap: break-word; }
-        button { margin-top: 15px; padding: 12px; background-color: #238636; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; width: 100%; }
-        button:hover { background-color: #2ea043; }
+        textarea { width: 100%; height: 320px; background-color: #161b22; color: #7ee787; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-sizing: border-box; resize: vertical; white-space: pre-wrap; word-wrap: break-word; }
+        
+        .action-btns { display: flex; gap: 10px; margin-top: 8px; }
+        .btn-secondary { flex: 1; padding: 8px; background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .btn-secondary:hover { background-color: #30363d; }
+
+        .key-container { margin-top: 20px; background-color: #161b22; padding: 15px; border-radius: 6px; border: 1px solid #30363d; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .key-container input { flex: 1; min-width: 200px; padding: 10px; background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: white; }
+
+        button.btn-main { margin-top: 15px; padding: 14px; background-color: #238636; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; width: 100%; }
+        button.btn-main:hover { background-color: #2ea043; }
+        
+        .status-msg { text-align: center; margin-top: 10px; font-weight: bold; font-size: 14px; }
+        .error { color: #f85149; }
+        .success { color: #56d364; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>⚡ VORTEXION Luau Obfuscator ⚡</h1>
-        <form method="POST">
+        <div class="subtitle">Pelindung Script Roblox Cepat & Aman</div>
+
+        <div class="premium-banner">
+            👑 Pengguna Gratis dibatasi <b>1x Obfuskasi per Hari</b>.<br>
+            Beli Akses Premium Unlimited Key di Discord Remi: 
+            <a href="https://discord.gg/fFGmaHwvvJ" target="_blank">https://discord.gg/fFGmaHwvvJ</a>
+        </div>
+
+        <form method="POST" id="obfForm" onsubmit="return checkLimit(event)">
             <div class="editor-container">
                 <div class="box">
                     <label>Script Roblox Asli (Input):</label>
-                    <textarea name="input_code" placeholder="Paste script Lua/Luau kamu di sini...">{{ input_code }}</textarea>
+                    <textarea id="inputCode" name="input_code" placeholder="Paste script Lua/Luau kamu di sini...">{{ input_code }}</textarea>
+                    <div class="action-btns">
+                        <button type="button" class="btn-secondary" onclick="pasteInput()">📋 Tempel Kode (Paste)</button>
+                        <button type="button" class="btn-secondary" onclick="clearInput()">🗑️ Bersihkan</button>
+                    </div>
                 </div>
                 <div class="box">
                     <label>Hasil Obfuskasi VORTEXION (Output):</label>
-                    <textarea readonly placeholder="Hasil obfuskasi akan muncul di sini...">{{ output_code }}</textarea>
+                    <textarea id="outputCode" readonly placeholder="Hasil obfuskasi akan muncul di sini...">{{ output_code }}</textarea>
+                    <div class="action-btns">
+                        <button type="button" class="btn-secondary" onclick="copyOutput()">📋 Salin Hasil (Copy)</button>
+                    </div>
                 </div>
             </div>
-            <button type="submit">🔒 Obfuscate Script</button>
+
+            <div class="key-container">
+                <label style="margin:0;">🔑 Kode Akses Premium (Key):</label>
+                <input type="text" id="accessKey" name="access_key" placeholder="Masukkan Kode Key Premium di sini..." value="{{ access_key }}">
+            </div>
+
+            <button type="submit" class="btn-main">🔒 Obfuscate Script</button>
         </form>
+
+        <div class="status-msg" id="statusMsg"></div>
+        {% if error %}
+            <div class="status-msg error">{{ error }}</div>
+        {% endif %}
     </div>
+
+    <script>
+        // Fungsi Salin
+        function copyOutput() {
+            const outputText = document.getElementById("outputCode");
+            if (!outputText.value.trim()) {
+                alert("Belum ada hasil obfuskasi untuk disalin!");
+                return;
+            }
+            navigator.clipboard.writeText(outputText.value);
+            alert("✅ Hasil obfuskasi berhasil disalin ke clipboard!");
+        }
+
+        // Fungsi Tempel
+        async function pasteInput() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById("inputCode").value = text;
+            } catch (err) {
+                alert("Gagal menempel! Izinkan akses clipboard di browser kamu.");
+            }
+        }
+
+        function clearInput() {
+            document.getElementById("inputCode").value = "";
+        }
+
+        // Logika Limit 1x per Hari
+        function checkLimit(event) {
+            const keyInput = document.getElementById("accessKey").value.trim();
+            const lastUsed = localStorage.getItem("vortexion_last_use");
+            const today = new Date().toDateString();
+
+            // Jika memasukkan Key, lewati batasan harian
+            if (keyInput.length > 0) {
+                return true;
+            }
+
+            // Jika pengguna gratisan & sudah pakai hari ini
+            if (lastUsed === today) {
+                event.preventDefault();
+                document.getElementById("statusMsg").innerHTML = 
+                    "<span class='error'>❌ Kamu sudah menggunakan limit gratisan hari ini!<br>Silakan beli Key Premium di Discord Remi atau tunggu besok.</span>";
+                return false;
+            }
+
+            // Simpan tanggal penggunaan gratisan
+            localStorage.setItem("vortexion_last_use", today);
+            return true;
+        }
+    </script>
 </body>
 </html>
 """
@@ -101,9 +193,25 @@ HTML_TEMPLATE = """
 def index():
     input_code = ""
     output_code = ""
+    access_key = ""
+    error = None
+
     if request.method == "POST":
         input_code = request.form.get("input_code", "")
-        output_code = obfuscate_roblox_script(input_code)
-    return render_template_string(HTML_TEMPLATE, input_code=input_code, output_code=output_code)
+        access_key = request.form.get("access_key", "").strip()
+
+        # Validasi Key jika diisi
+        if access_key and access_key not in VALID_KEYS:
+            error = "❌ Kode Key Premium tidak valid! Dapatkan yang asli di Discord Remi."
+        else:
+            output_code = obfuscate_roblox_script(input_code)
+
+    return render_template_string(
+        HTML_TEMPLATE, 
+        input_code=input_code, 
+        output_code=output_code, 
+        access_key=access_key,
+        error=error
+    )
 
 app = app
