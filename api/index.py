@@ -1,5 +1,4 @@
 from flask import Flask, render_template_string, request
-import re
 import random
 
 app = Flask(__name__)
@@ -15,7 +14,7 @@ VVV            VVV  OOOOOOO   RRRRRRRRRR TTTTTTTTTTTEEEEEEEEEE XXXXX      XXXXX 
       VVVVVV      OOOOOOOOOOO RRR    RRRR   TTTT   EEEEEEEEEE   XXXXX    XXXXX  I OOOOOOOOOOO NNN   NNNNN
        VVVV        OOOOOOO   RRR     RRRR  TTTT   EEEEEEEEEE  XXXXX      XXXXXI  OOOOOOO  NNN    NNNN
 
-      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX MUSIC ENGINE SAFE) >>
+      << PROTECTED BY VORTEXION OBFUSCATOR (ROBLOX MUSIC ENGINE FULL SAFE) >>
 ]]--
 """
 
@@ -25,78 +24,28 @@ def generate_var():
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "_" + ''.join(random.choices(chars, k=8))
 
-# Whitelist Luau & Roblox API Lengkap
-ROBLOX_KEYWORDS = {
-    'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 
-    'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 
-    'true', 'until', 'while', 'self', 'ipairs', 'pairs', 'table', 'string', 
-    'math', 'print', 'warn', 'error', 'pcall', 'xpcall', 'select', 'type', 
-    'tostring', 'tonumber', 'setmetatable', 'getmetatable', 'utf8', 'coroutine',
-    'unpack', 'next', 'assert', 'rawget', 'rawset', 'rawequal', 'typeof',
-    'game', 'workspace', 'script', 'Instance', 'Vector3', 'Vector2', 'CFrame', 
-    'Color3', 'UDim2', 'UDim', 'Enum', 'TweenInfo', 'Task', 'task', 'delay', 
-    'wait', 'spawn', 'tick', 'time', 'os', 'shared', '_G', 'Ray', 'RaycastParams',
-    'Players', 'ReplicatedStorage', 'ServerScriptService', 'ServerStorage', 
-    'TweenService', 'UserInputService', 'RunService', 'HttpService', 
-    'SoundService', 'Lighting', 'StarterGui', 'StarterPack', 'Debris',
-    'GetService', 'WaitForChild', 'FindFirstChild', 'FindFirstChildOfClass',
-    'Connect', 'Once', 'Wait', 'FireServer', 'FireAllClients', 'FireClient', 
-    'OnServerEvent', 'OnClientEvent', 'InvokeServer', 'InvokeClient', 
-    'OnServerInvoke', 'OnClientInvoke', 'Parent', 'Name', 'Value', 'Position', 
-    'Size', 'Destroy', 'Clone', 'ClearAllChildren', 'GetChildren', 'GetDescendants',
-    'IsA', 'Play', 'Stop', 'Pause', 'Resume', 'AddItem', 'SoundId', 'Loaded', 
-    'TimeLength', 'IsLoaded', 'Playing', 'Volume', 'Pitch', 'PlaybackSpeed'
-}
-
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
-    
-    # 1. Hapus Komentar
-    clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code)
-    clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE)
 
-    # 2. Amankan String Literals agar tidak tersentuh penggantian variabel
-    strings_map = {}
-    
-    def protect_string(match):
-        s = match.group(0)
-        placeholder = f"__PROTECTED_STR_{len(strings_map)}__"
-        strings_map[placeholder] = s
-        return placeholder
+    # Konversi setiap karakter ke Hex Escape sequence
+    # Ini menyembunyikan SELURUH isi script (termasuk ID lagu & nama variable)
+    # Tanpa mengubah logika/nama function di dalamnya saat di-execute
+    hex_bytes = "".join([f"\\x{ord(c):02x}" for c in lua_code])
 
-    string_pattern = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\''
-    protected_code = re.sub(string_pattern, protect_string, clean_code)
+    v_str = generate_var()
+    v_fn = generate_var()
+    v_err = generate_var()
 
-    # 3. Mangle Variabel & Function Lokal
-    local_vars = set(re.findall(r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)', protected_code))
-    func_vars = set(re.findall(r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)', protected_code))
-    
-    targets_to_mangle = local_vars.union(func_vars)
-    token_map = {}
-
-    for t in targets_to_mangle:
-        if t not in ROBLOX_KEYWORDS and not t.startswith('__'):
-            token_map[t] = generate_var()
-
-    def replace_tokens(match):
-        word = match.group(0)
-        return token_map.get(word, word)
-
-    mangled_code = re.sub(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', replace_tokens, protected_code)
-
-    # 4. Kembalikan String Asli ke Posisinya (Tanpa Merusak Method Roblox)
-    for placeholder, original_str in strings_map.items():
-        mangled_code = mangled_code.replace(placeholder, original_str)
-
-    # 5. Bungkus ke Runtime Wrapper
-    v_run = generate_var()
-
+    # Generator Luau Runtime Wrapper
     engine = f"""
-local {v_run} = function(...)
-    {mangled_code}
+local {v_str} = "{hex_bytes}"
+local {v_fn}, {v_err} = loadstring({v_str})
+if {v_fn} then
+    return {v_fn}()
+else
+    error("Vortexion Protection Error: " .. tostring({v_err}))
 end
-return {v_run}(...)
 """
 
     one_liner = " ".join([line.strip() for line in engine.splitlines() if line.strip()])
