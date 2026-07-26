@@ -1,4 +1,5 @@
 from flask import Flask, render_template_string, request
+import re
 import random
 
 app = Flask(__name__)
@@ -23,23 +24,36 @@ def generate_random_name():
     hex_str = ''.join(random.choices("0123456789ABCDEF", k=5))
     return f"_0x{hex_str}"
 
+def encode_string_to_utf8(match):
+    str_content = match.group(1) or match.group(2)
+    if not str_content:
+        return '""'
+    
+    codepoints = [str(ord(char)) for char in str_content]
+    return f"utf8.char({', '.join(codepoints)})"
+
 def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Mengubah teks ke daftar Unicode Codepoints (Aman untuk Emoji & Karakter Khusus)
-    codepoints = [str(ord(char)) for char in lua_code]
-    byte_string = ",".join(codepoints)
-    
-    # 2. Nama variabel acak untuk Loader
-    v_data = generate_random_name()
-    v_func = generate_random_name()
-    v_load = generate_random_name()
-    
-    # 3. Loader Luau yang menggunakan utf8.char & loadstring
-    one_liner = f"local {v_data}={{ {byte_string} }};local {v_func}=\"\";for _,v in ipairs({v_data}) do {v_func}={v_func}..utf8.char(v) end;local {v_load}=assert(loadstring or load)({v_func});return {v_load}()"
+    # 1. Obfuskasi semua teks/string menjadi utf8.char(...)
+    string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
+    obfuscated = re.sub(string_pattern, encode_string_to_utf8, lua_code)
 
-    return f"{ASCII_ART_VORTEXION}\n{one_liner}"
+    # 2. Obfuskasi variabel lokal sederhana
+    var_pattern = r'\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)'
+    variables = set(re.findall(var_pattern, lua_code))
+    
+    var_map = {}
+    blacklist = ['self', 'script', 'game', 'workspace', 'plugin', 'shared', '_G']
+    for var in variables:
+        if var not in blacklist:
+            var_map[var] = generate_random_name()
+
+    for old_var, new_var in var_map.items():
+        obfuscated = re.sub(r'\b' + old_var + r'\b', new_var, obfuscated)
+
+    return f"{ASCII_ART_VORTEXION}\n{obfuscated}"
 
 # --- TAMPILAN WEB ---
 HTML_TEMPLATE = """
