@@ -1,4 +1,5 @@
 from flask import Flask, render_template_string, request
+import re
 import random
 
 app = Flask(__name__)
@@ -27,18 +28,20 @@ def obfuscate_roblox_script(lua_code):
     if not lua_code.strip():
         return ""
     
-    # 1. Obfuskasi string sederhana menggunakan array UTF8
+    # 1. Hapus Komentar Multi-baris (--[[ ... ]]) & Komentar Satu Baris (-- ...)
+    clean_code = re.sub(r'--\[\[[\s\S]*?\]\]', '', lua_code) # Hapus --[[ ]]
+    clean_code = re.sub(r'--.*$', '', clean_code, flags=re.MULTILINE) # Hapus -- komentar biasa
+    
+    # 2. Obfuskasi string sederhana menggunakan array UTF8
     def encode_str(s):
         codes = [str(ord(c)) for c in s]
         return f"utf8.char({','.join(codes)})" if codes else '""'
 
-    # 2. Encapsulate seluruh baris menjadi 1 baris kompak (Compact Execution Wrapper)
-    # Hapus baris kosong & whitespace tak perlu
-    lines = [line.strip() for line in lua_code.splitlines() if line.strip()]
+    # 3. Encapsulate & Kompres Kode
+    lines = [line.strip() for line in clean_code.splitlines() if line.strip()]
     compact_code = " ".join(lines)
 
-    # 3. Pengacakan String Di Dalam Kode Saja
-    import re
+    # 4. Enkripsi Teks/String Dalam Kode
     string_pattern = r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\''
     
     def replacer(match):
@@ -47,7 +50,7 @@ def obfuscate_roblox_script(lua_code):
 
     clean_one_line = re.sub(string_pattern, replacer, compact_code)
 
-    # 4. Bungkus dalam do...end 1 baris
+    # 5. Bungkus dalam Wrapper Anonymous Function 1 Baris
     var_wrapper = generate_random_name()
     one_liner = f"local {var_wrapper}=function(...) {clean_one_line} end; return {var_wrapper}(...)"
 
